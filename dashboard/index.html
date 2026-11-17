@@ -1,0 +1,1403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MCP Server Forge · Mission Control Dashboard</title>
+  <style>
+    :root {
+      --bg-base: #06080d;
+      --bg-surface: #0c1017;
+      --bg-card: rgba(16, 22, 34, 0.72);
+      --bg-card-hover: rgba(22, 30, 48, 0.85);
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-accent: rgba(0, 240, 255, 0.3);
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+
+      --cyan-glow: #00f0ff;
+      --cyan-dim: rgba(0, 240, 255, 0.15);
+      --emerald-glow: #10b981;
+      --emerald-dim: rgba(16, 185, 129, 0.15);
+      --violet-glow: #a855f7;
+      --violet-dim: rgba(168, 85, 247, 0.18);
+      --amber-glow: #f59e0b;
+      --amber-dim: rgba(245, 158, 11, 0.18);
+      --rose-glow: #f43f5e;
+      --rose-dim: rgba(244, 63, 94, 0.18);
+
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      --font-mono: "SF Mono", Monaco, "Cascadia Code", "Courier New", monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-base);
+      background-image: 
+        radial-gradient(circle at 15% 15%, rgba(0, 240, 255, 0.04) 0%, transparent 40%),
+        radial-gradient(circle at 85% 10%, rgba(168, 85, 247, 0.05) 0%, transparent 45%),
+        radial-gradient(circle at 50% 90%, rgba(16, 185, 129, 0.04) 0%, transparent 50%),
+        linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+      background-size: 100% 100%, 100% 100%, 100% 100%, 32px 32px, 32px 32px;
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      min-height: 100vh;
+      padding: 24px 32px 48px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Container Layout */
+    .container {
+      max-width: 1440px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 28px;
+    }
+
+    /* Glass Cards */
+    .card {
+      background: var(--bg-card);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--border-subtle);
+      border-radius: 14px;
+      padding: 22px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.36);
+      transition: all 0.25s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card:hover {
+      border-color: rgba(255, 255, 255, 0.14);
+      background: var(--bg-card-hover);
+    }
+
+    /* Header Bar */
+    header.header-card {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: center;
+      gap: 24px;
+      padding: 20px 28px;
+      border: 1px solid rgba(0, 240, 255, 0.2);
+      background: linear-gradient(135deg, rgba(12, 18, 30, 0.9) 0%, rgba(8, 12, 20, 0.9) 100%);
+    }
+
+    .brand-section {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .brand-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #00f0ff 0%, #3b82f6 50%, #a855f7 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 20px rgba(0, 240, 255, 0.4);
+    }
+
+    .brand-icon svg {
+      width: 24px;
+      height: 24px;
+      fill: #06080d;
+    }
+
+    .brand-text h1 {
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      background: linear-gradient(90deg, #ffffff 0%, #cbd5e1 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-badge {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: rgba(0, 240, 255, 0.12);
+      color: var(--cyan-glow);
+      border: 1px solid rgba(0, 240, 255, 0.3);
+      letter-spacing: 0.05em;
+    }
+
+    .brand-sub {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-top: 3px;
+    }
+
+    /* Header Metrics Strip */
+    .header-metrics {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 28px;
+    }
+
+    .metric-pill {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+    }
+
+    .metric-pill .label {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .metric-pill .value {
+      font-size: 18px;
+      font-weight: 700;
+      font-family: var(--font-mono);
+      color: #ffffff;
+      display: flex;
+      align-items: baseline;
+      gap: 4px;
+    }
+
+    .metric-pill .sub {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-weight: 400;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    /* Overall Circular Progress Ring */
+    .circle-progress-wrap {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .circle-svg {
+      width: 54px;
+      height: 54px;
+      transform: rotate(-90deg);
+    }
+
+    .circle-bg {
+      fill: none;
+      stroke: rgba(255, 255, 255, 0.08);
+      stroke-width: 5;
+    }
+
+    .circle-bar {
+      fill: none;
+      stroke: url(#cyan-purple-grad);
+      stroke-width: 5;
+      stroke-linecap: round;
+      stroke-dasharray: 157;
+      stroke-dashoffset: 157;
+      transition: stroke-dashoffset 0.6s ease;
+    }
+
+    .circle-label {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .circle-pct {
+      font-size: 20px;
+      font-weight: 800;
+      font-family: var(--font-mono);
+      color: #ffffff;
+    }
+
+    .circle-text {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+
+    /* Status Pill Pulse */
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      border-radius: 9999px;
+      font-size: 12px;
+      font-family: var(--font-mono);
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      border: 1px solid transparent;
+      transition: all 0.3s ease;
+    }
+
+    .status-pill.working {
+      background: rgba(0, 240, 255, 0.1);
+      color: var(--cyan-glow);
+      border-color: rgba(0, 240, 255, 0.3);
+      box-shadow: 0 0 16px rgba(0, 240, 255, 0.2);
+    }
+
+    .status-pill.completed {
+      background: rgba(16, 185, 129, 0.12);
+      color: var(--emerald-glow);
+      border-color: rgba(16, 185, 129, 0.4);
+      box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
+    }
+
+    .pulse-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: currentColor;
+      box-shadow: 0 0 10px currentColor;
+      animation: pulseAnim 1.6s infinite ease-in-out;
+    }
+
+    @keyframes pulseAnim {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.75); }
+    }
+
+    .btn-toggle {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-muted);
+      padding: 7px 12px;
+      border-radius: 8px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+    }
+
+    .btn-toggle:hover {
+      background: rgba(255, 255, 255, 0.12);
+      color: #ffffff;
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    /* Section Titles */
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .section-title {
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .section-title::before {
+      content: "";
+      width: 4px;
+      height: 16px;
+      background: linear-gradient(180deg, var(--cyan-glow), var(--violet-glow));
+      border-radius: 2px;
+      display: inline-block;
+    }
+
+    .section-meta {
+      font-size: 12px;
+      color: var(--text-dim);
+      font-family: var(--font-mono);
+    }
+
+    /* Section 1: Parallel Subagent Fleet */
+    .fleet-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+    }
+
+    .agent-card {
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 18px;
+      background: rgba(14, 19, 31, 0.65);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      position: relative;
+      transition: all 0.25s ease;
+    }
+
+    .agent-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.4);
+    }
+
+    /* Agent Card Color Themes */
+    .agent-card.theme-core {
+      border-top: 3px solid var(--violet-glow);
+    }
+    .agent-card.theme-core:hover {
+      border-color: rgba(168, 85, 247, 0.4);
+    }
+
+    .agent-card.theme-pipeline {
+      border-top: 3px solid var(--cyan-glow);
+    }
+    .agent-card.theme-pipeline:hover {
+      border-color: rgba(0, 240, 255, 0.4);
+    }
+
+    .agent-card.theme-tools {
+      border-top: 3px solid var(--emerald-glow);
+    }
+    .agent-card.theme-tools:hover {
+      border-color: rgba(16, 185, 129, 0.4);
+    }
+
+    .agent-card.theme-dashboard {
+      border-top: 3px solid var(--amber-glow);
+    }
+    .agent-card.theme-dashboard:hover {
+      border-color: rgba(245, 158, 11, 0.4);
+    }
+
+    .agent-card-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .agent-identity {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .agent-name {
+      font-size: 16px;
+      font-weight: 800;
+      color: #ffffff;
+      font-family: var(--font-mono);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .agent-role {
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.3;
+    }
+
+    .agent-model-pill {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      font-weight: 700;
+      padding: 4px 8px;
+      border-radius: 6px;
+      white-space: nowrap;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .model-core {
+      background: var(--violet-dim);
+      color: #d8b4fe;
+      border: 1px solid rgba(168, 85, 247, 0.4);
+    }
+
+    .model-pipeline {
+      background: var(--cyan-dim);
+      color: #67e8f9;
+      border: 1px solid rgba(0, 240, 255, 0.4);
+    }
+
+    .model-tools {
+      background: var(--emerald-dim);
+      color: #6ee7b7;
+      border: 1px solid rgba(16, 185, 129, 0.4);
+    }
+
+    .model-dashboard {
+      background: var(--amber-dim);
+      color: #fcd34d;
+      border: 1px solid rgba(245, 158, 11, 0.4);
+    }
+
+    .agent-rationale {
+      font-size: 11px;
+      color: var(--text-dim);
+      font-style: italic;
+      background: rgba(0, 0, 0, 0.25);
+      padding: 6px 10px;
+      border-radius: 6px;
+      border-left: 2px solid var(--border-subtle);
+      line-height: 1.35;
+    }
+
+    .agent-progress-box {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .progress-meta {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      font-family: var(--font-mono);
+    }
+
+    .progress-pct {
+      font-weight: 700;
+      color: #ffffff;
+    }
+
+    .progress-track {
+      height: 7px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 999px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .progress-fill {
+      height: 100%;
+      border-radius: 999px;
+      transition: width 0.5s ease-out;
+    }
+
+    .progress-fill.core { background: linear-gradient(90deg, #9333ea, #c084fc); }
+    .progress-fill.pipeline { background: linear-gradient(90deg, #0284c7, #38bdf8); }
+    .progress-fill.tools { background: linear-gradient(90deg, #059669, #34d399); }
+    .progress-fill.dashboard { background: linear-gradient(90deg, #d97706, #fbbf24); }
+
+    .agent-task {
+      font-size: 12px;
+      color: var(--text-main);
+      background: rgba(0, 0, 0, 0.35);
+      border-radius: 8px;
+      padding: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      min-height: 52px;
+      line-height: 1.4;
+      display: flex;
+      align-items: center;
+    }
+
+    .agent-task .task-icon {
+      margin-right: 8px;
+      color: var(--cyan-glow);
+    }
+
+    .agent-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      max-height: 64px;
+      overflow-y: auto;
+      padding-right: 2px;
+    }
+
+    .file-chip {
+      font-size: 10px;
+      font-family: var(--font-mono);
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text-muted);
+      padding: 3px 6px;
+      border-radius: 4px;
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      white-space: nowrap;
+    }
+
+    /* Section 2: 5-Stage Forge Pipeline Visualizer */
+    .pipeline-flow {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 14px;
+      position: relative;
+    }
+
+    .stage-card {
+      background: rgba(14, 20, 32, 0.7);
+      border: 1px solid var(--border-subtle);
+      border-radius: 10px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      position: relative;
+      transition: all 0.3s ease;
+    }
+
+    .stage-card::after {
+      content: "➔";
+      position: absolute;
+      right: -13px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 14px;
+      color: var(--text-dim);
+      z-index: 2;
+    }
+
+    .stage-card:last-child::after {
+      display: none;
+    }
+
+    .stage-card.running {
+      border-color: rgba(0, 240, 255, 0.5);
+      background: rgba(0, 240, 255, 0.05);
+      box-shadow: 0 0 20px rgba(0, 240, 255, 0.15);
+    }
+
+    .stage-card.completed {
+      border-color: rgba(16, 185, 129, 0.5);
+      background: rgba(16, 185, 129, 0.06);
+    }
+
+    .stage-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .stage-num {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      font-weight: 800;
+      color: var(--text-dim);
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .stage-status-badge {
+      font-size: 10px;
+      font-family: var(--font-mono);
+      font-weight: 700;
+      text-transform: uppercase;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    .stage-status-badge.completed {
+      background: var(--emerald-dim);
+      color: var(--emerald-glow);
+    }
+
+    .stage-status-badge.running {
+      background: var(--cyan-dim);
+      color: var(--cyan-glow);
+      animation: pulseAnim 1.6s infinite ease-in-out;
+    }
+
+    .stage-status-badge.pending {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-dim);
+    }
+
+    .stage-name {
+      font-size: 13px;
+      font-weight: 700;
+      color: #ffffff;
+      line-height: 1.3;
+    }
+
+    .stage-desc {
+      font-size: 11px;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+
+    .stage-agent-tag {
+      margin-top: auto;
+      font-size: 10px;
+      font-family: var(--font-mono);
+      color: var(--text-dim);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    /* Section 3: Dual Grid (Verification Gates + Adaptive Model Routing) */
+    .dual-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    /* Left: Verification Matrix */
+    .gate-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .gate-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 14px;
+      border-radius: 8px;
+      background: rgba(0, 0, 0, 0.28);
+      border: 1px solid var(--border-subtle);
+      transition: all 0.2s ease;
+    }
+
+    .gate-item:hover {
+      border-color: rgba(255, 255, 255, 0.12);
+      background: rgba(0, 0, 0, 0.4);
+    }
+
+    .gate-info {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .gate-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #ffffff;
+    }
+
+    .gate-rule {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .gate-cmd {
+      font-size: 10px;
+      font-family: var(--font-mono);
+      color: var(--text-dim);
+    }
+
+    .gate-status-pill {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .gate-status-pill.passing {
+      background: var(--emerald-dim);
+      color: var(--emerald-glow);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .gate-status-pill.running {
+      background: var(--cyan-dim);
+      color: var(--cyan-glow);
+      border: 1px solid rgba(0, 240, 255, 0.3);
+    }
+
+    .gate-status-pill.pending {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-dim);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    /* Right: Adaptive Model Routing Matrix */
+    .routing-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 6px;
+    }
+
+    .routing-table th {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      color: var(--text-dim);
+      text-transform: uppercase;
+      padding: 6px 8px;
+      text-align: center;
+      font-weight: 700;
+    }
+
+    .routing-table td {
+      padding: 8px 10px;
+      border-radius: 8px;
+      font-size: 11px;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      text-align: center;
+      transition: all 0.2s ease;
+      vertical-align: middle;
+    }
+
+    .routing-table td.family-cell {
+      text-align: left;
+      font-weight: 700;
+      color: #ffffff;
+      font-family: var(--font-mono);
+      background: rgba(255, 255, 255, 0.04);
+      width: 110px;
+    }
+
+    .routing-table td.active-cell {
+      border-width: 1.5px;
+      font-weight: 700;
+    }
+
+    .routing-table td.active-gemini {
+      background: var(--amber-dim);
+      border-color: var(--amber-glow);
+      color: #fde68a;
+      box-shadow: 0 0 14px rgba(245, 158, 11, 0.2);
+    }
+
+    .routing-table td.active-hydrogen {
+      background: var(--emerald-dim);
+      border-color: var(--emerald-glow);
+      color: #a7f3d0;
+      box-shadow: 0 0 14px rgba(16, 185, 129, 0.2);
+    }
+
+    .routing-table td.active-argon {
+      background: var(--cyan-dim);
+      border-color: var(--cyan-glow);
+      color: #a5f3fc;
+      box-shadow: 0 0 14px rgba(0, 240, 255, 0.2);
+    }
+
+    .routing-table td.active-carbon {
+      background: var(--violet-dim);
+      border-color: var(--violet-glow);
+      color: #e9d5ff;
+      box-shadow: 0 0 14px rgba(168, 85, 247, 0.2);
+    }
+
+    .cell-sub {
+      display: block;
+      font-size: 9px;
+      font-weight: 400;
+      opacity: 0.85;
+      margin-top: 2px;
+      font-family: var(--font-sans);
+    }
+
+    .cell-inactive {
+      color: var(--text-dim);
+      opacity: 0.45;
+    }
+
+    /* Section 4: Live File Explorer */
+    .file-table-wrap {
+      overflow-x: auto;
+      max-height: 320px;
+      border-radius: 8px;
+      border: 1px solid var(--border-subtle);
+    }
+
+    table.file-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      text-align: left;
+    }
+
+    table.file-table th {
+      background: rgba(8, 12, 20, 0.9);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      padding: 10px 14px;
+      font-size: 11px;
+      font-family: var(--font-mono);
+      text-transform: uppercase;
+      color: var(--text-dim);
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    table.file-table td {
+      padding: 8px 14px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+      color: var(--text-main);
+    }
+
+    table.file-table tr:hover td {
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .file-path {
+      font-family: var(--font-mono);
+      color: #ffffff;
+      font-weight: 500;
+    }
+
+    .owner-pill {
+      font-size: 10px;
+      font-family: var(--font-mono);
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-weight: 700;
+      text-transform: uppercase;
+      display: inline-block;
+    }
+
+    .owner-core { background: var(--violet-dim); color: #d8b4fe; }
+    .owner-pipeline { background: var(--cyan-dim); color: #67e8f9; }
+    .owner-tools { background: var(--emerald-dim); color: #6ee7b7; }
+    .owner-dashboard { background: var(--amber-dim); color: #fcd34d; }
+    .owner-workspace { background: rgba(255, 255, 255, 0.08); color: var(--text-muted); }
+
+    /* Footer */
+    footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12px;
+      color: var(--text-dim);
+      padding: 14px 4px 0;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+      font-family: var(--font-mono);
+    }
+
+    .footer-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.2);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- SVG Defs for Gradients -->
+    <svg style="width:0;height:0;position:absolute;" aria-hidden="true" focusable="false">
+      <defs>
+        <linearGradient id="cyan-purple-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#00f0ff" />
+          <stop offset="60%" stop-color="#3b82f6" />
+          <stop offset="100%" stop-color="#a855f7" />
+        </linearGradient>
+      </defs>
+    </svg>
+
+    <!-- Top Header Bar -->
+    <header class="card header-card">
+      <div class="brand-section">
+        <div class="brand-icon">
+          <svg viewBox="0 0 24 24">
+            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <h1>
+            MCP SERVER FORGE
+            <span class="brand-badge">2026-07-28 SPEC</span>
+            <span class="brand-badge" style="color:#a855f7; border-color:rgba(168,85,247,0.3); background:rgba(168,85,247,0.1);">FastMCP 4.x</span>
+          </h1>
+          <div class="brand-sub">Mission Control · Multi-Agent Parallel Synthesis & Formal Verification</div>
+        </div>
+      </div>
+
+      <div class="header-metrics">
+        <div class="metric-pill">
+          <span class="label">Workspace LOC</span>
+          <span class="value" id="header-loc">-- <span class="sub">lines</span></span>
+        </div>
+        <div class="metric-pill">
+          <span class="label">Files Synthesized</span>
+          <span class="value" id="header-files">-- <span class="sub">files</span></span>
+        </div>
+        <div class="metric-pill">
+          <span class="label">Parallel Agents</span>
+          <span class="value" id="header-agents">4 / 4 <span class="sub">active</span></span>
+        </div>
+        <div class="metric-pill">
+          <span class="label">Target Spec</span>
+          <span class="value" style="color:var(--cyan-glow);">FastMCP <span class="sub">v4.1.6</span></span>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <!-- SVG Progress Ring -->
+        <div class="circle-progress-wrap">
+          <svg class="circle-svg" viewBox="0 0 54 54">
+            <circle class="circle-bg" cx="27" cy="27" r="23"></circle>
+            <circle class="circle-bar" id="circle-bar" cx="27" cy="27" r="23"></circle>
+          </svg>
+          <div class="circle-label">
+            <span class="circle-pct" id="overall-pct">0%</span>
+            <span class="circle-text">Forge Progress</span>
+          </div>
+        </div>
+
+        <div class="status-pill working" id="overall-status-pill">
+          <span class="pulse-dot"></span>
+          <span id="overall-status-text">INITIALIZING</span>
+        </div>
+
+        <button class="btn-toggle" id="btn-toggle-poll" title="Toggle automatic polling">
+          <span id="poll-indicator">●</span> <span id="poll-btn-label">Pause Live</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- SECTION 1: Parallel Subagent Fleet (4 Cards) -->
+    <section>
+      <div class="section-header">
+        <div class="section-title">Parallel Subagent Fleet · 4 Active Synthesizers</div>
+        <div class="section-meta">Optimal {Model × Effort} Alignment per Task Density</div>
+      </div>
+      <div class="fleet-grid" id="fleet-grid">
+        <!-- 4 Cards Dynamically Rendered -->
+      </div>
+    </section>
+
+    <!-- SECTION 2: 5-Stage Forge Pipeline Visualizer -->
+    <section>
+      <div class="section-header">
+        <div class="section-title">5-Stage Forge Pipeline Flow</div>
+        <div class="section-meta">From OpenAPI 3.x Ingestion to Destructive Signoff</div>
+      </div>
+      <div class="pipeline-flow" id="pipeline-flow">
+        <!-- 5 Stage Cards Dynamically Rendered -->
+      </div>
+    </section>
+
+    <!-- SECTION 3: Dual Grid (5-Gate Verification Matrix & Adaptive Model Routing Matrix) -->
+    <div class="dual-grid">
+      <!-- Left: Verification Matrix -->
+      <div class="card">
+        <div class="section-header">
+          <div class="section-title">MCP 2026-07-28 Verification Matrix</div>
+          <div class="section-meta">5 Strict Security & Protocol Gates</div>
+        </div>
+        <div class="gate-list" id="gate-list">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+
+      <!-- Right: Adaptive Model Routing Matrix -->
+      <div class="card">
+        <div class="section-header">
+          <div class="section-title">Adaptive Model × Effort Routing Matrix</div>
+          <div class="section-meta">{Gemini, Hydrogen, Argon, Carbon} × {Low, Med, High}</div>
+        </div>
+        <table class="routing-table">
+          <thead>
+            <tr>
+              <th style="text-align:left;">Family</th>
+              <th>Low Effort</th>
+              <th>Medium Effort</th>
+              <th>High Effort</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="family-cell">Gemini Flash</td>
+              <td class="cell-inactive">3.8 Flash<span class="cell-sub">Summary</span></td>
+              <td class="active-cell active-gemini">
+                Gemini 3.8 Flash
+                <span class="cell-sub">@dashboard · Live UI & Metrics</span>
+              </td>
+              <td class="cell-inactive">3.8 Pro<span class="cell-sub">Orchestration</span></td>
+            </tr>
+            <tr>
+              <td class="family-cell">Hydrogen</td>
+              <td class="cell-inactive">4 Hydrogen<span class="cell-sub">Templates</span></td>
+              <td class="cell-inactive">4 Hydrogen<span class="cell-sub">Tools</span></td>
+              <td class="active-cell active-hydrogen">
+                Gemini 4 Hydrogen
+                <span class="cell-sub">@tools · MCP Tools & Unit TDD</span>
+              </td>
+            </tr>
+            <tr>
+              <td class="family-cell">Argon</td>
+              <td class="cell-inactive">4 Argon<span class="cell-sub">AST Syntax</span></td>
+              <td class="cell-inactive">4 Argon<span class="cell-sub">Translation</span></td>
+              <td class="active-cell active-argon">
+                Gemini 4 Argon
+                <span class="cell-sub">@pipeline · Normalizer & Repair</span>
+              </td>
+            </tr>
+            <tr>
+              <td class="family-cell">Carbon</td>
+              <td class="cell-inactive">4 Carbon<span class="cell-sub">Static Rules</span></td>
+              <td class="cell-inactive">4 Carbon<span class="cell-sub">Contracts</span></td>
+              <td class="active-cell active-carbon">
+                Gemini 4 Carbon
+                <span class="cell-sub">@core · Security & Golden Core</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <div style="margin-top:14px; font-size:11px; color:var(--text-muted); line-height:1.45;">
+          <strong style="color:#ffffff;">Routing Justification:</strong> Carbon High delivers maximum formal verification & AST security rigor for the Golden Core; Argon High executes complex recursive graph transformations for OpenAPI normalizers; Hydrogen High accelerates high-throughput Pydantic tool generation; Flash Medium provides ultra-responsive sub-second telemetry aggregation.
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTION 4: Live Workspace File Explorer -->
+    <section class="card">
+      <div class="section-header">
+        <div class="section-title">Live Workspace Artifact Explorer & Activity Stream</div>
+        <div class="section-meta" id="workspace-summary-chips">
+          <!-- Artifact tags -->
+        </div>
+      </div>
+      <div class="file-table-wrap">
+        <table class="file-table">
+          <thead>
+            <tr>
+              <th>File Path</th>
+              <th>Owner Agent</th>
+              <th>Lines (LOC)</th>
+              <th>Size</th>
+              <th>Last Modified</th>
+            </tr>
+          </thead>
+          <tbody id="file-table-body">
+            <tr>
+              <td colspan="5" style="text-align:center; color:var(--text-dim); padding:20px;">Scanning workspace...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+      <div class="footer-left">
+        <span>MCP Server Forge · FastMCP 4.1.6 Golden Runtime</span>
+        <span>•</span>
+        <span>Zero-CORS Real-Time Live Reload Engine</span>
+      </div>
+      <div>
+        <span>Heartbeat: <span id="footer-heartbeat" style="color:var(--cyan-glow);">--</span></span>
+      </div>
+    </footer>
+  </div>
+
+  <!-- Zero-CORS Live Polling Engine -->
+  <script>
+    let pollIntervalMs = 1500;
+    let isPolling = true;
+    let pollTimer = null;
+    let activeScriptTag = null;
+    const CIRCLE_CIRCUMFERENCE = 2 * Math.PI * 23; // ~144.51
+
+    function updateDashboard(data) {
+      if (!data) return;
+
+      // Header updates
+      document.getElementById('header-loc').innerHTML = `${(data.workspace?.total_loc || 0).toLocaleString()} <span class="sub">lines</span>`;
+      document.getElementById('header-files').innerHTML = `${data.workspace?.total_files || 0} <span class="sub">files</span>`;
+      document.getElementById('header-agents').innerHTML = `${data.active_subagents || 4} / ${data.max_subagents || 4} <span class="sub">active</span>`;
+
+      // Overall Progress Ring
+      const pct = Math.min(100, Math.max(0, data.overall_progress || 0));
+      document.getElementById('overall-pct').textContent = `${pct}%`;
+      const offset = CIRCLE_CIRCUMFERENCE - (pct / 100) * CIRCLE_CIRCUMFERENCE;
+      const circleBar = document.getElementById('circle-bar');
+      if (circleBar) {
+        circleBar.style.strokeDasharray = `${CIRCLE_CIRCUMFERENCE}`;
+        circleBar.style.strokeDashoffset = `${offset}`;
+      }
+
+      // Status Pill
+      const statusPill = document.getElementById('overall-status-pill');
+      const statusText = document.getElementById('overall-status-text');
+      const isCompleted = data.overall_status === 'ALL SYSTEMS VERIFIED' || pct === 100;
+      if (isCompleted) {
+        statusPill.className = 'status-pill completed';
+        statusText.textContent = 'ALL SYSTEMS VERIFIED';
+      } else {
+        statusPill.className = 'status-pill working';
+        statusText.textContent = data.overall_status || 'BUILDING IN PARALLEL';
+      }
+
+      // Footer Heartbeat
+      document.getElementById('footer-heartbeat').textContent = data.time_display || new Date().toISOString();
+
+      // Section 1: Fleet Cards
+      renderFleetGrid(data.agents || {});
+
+      // Section 2: Pipeline Stages
+      renderPipeline(data.stages || []);
+
+      // Section 3: Verification Matrix
+      renderVerificationMatrix(data.verification_matrix || []);
+
+      // Section 4: File Explorer
+      renderFileExplorer(data.workspace || {});
+    }
+
+    function renderFleetGrid(agents) {
+      const container = document.getElementById('fleet-grid');
+      const order = ['core', 'pipeline', 'tools', 'dashboard'];
+      
+      const themeMap = {
+        core: { class: 'theme-core', fill: 'core', modelClass: 'model-core' },
+        pipeline: { class: 'theme-pipeline', fill: 'pipeline', modelClass: 'model-pipeline' },
+        tools: { class: 'theme-tools', fill: 'tools', modelClass: 'model-tools' },
+        dashboard: { class: 'theme-dashboard', fill: 'dashboard', modelClass: 'model-dashboard' },
+      };
+
+      let html = '';
+      for (const name of order) {
+        const agent = agents[name] || {
+          agent: name,
+          role: 'Subagent',
+          model_label: 'Gemini',
+          effort: 'High',
+          status: 'pending',
+          progress: 0,
+          current_task: 'Awaiting task dispatch...',
+          files_owned: [],
+        };
+
+        const theme = themeMap[name] || themeMap.core;
+        const progress = agent.progress || 0;
+        const isCompleted = agent.status === 'completed' || progress === 100;
+        const statusBadgeClass = isCompleted ? 'stage-status-badge completed' : 'stage-status-badge running';
+        const statusLabel = isCompleted ? 'COMPLETED' : 'WORKING';
+
+        const fileChips = (agent.files_owned || [])
+          .map(f => `<span class="file-chip" title="${f}">${f.split('/').pop()}</span>`)
+          .join('');
+
+        html += `
+          <div class="card agent-card ${theme.class}">
+            <div class="agent-card-top">
+              <div class="agent-identity">
+                <div class="agent-name">
+                  @${agent.agent}
+                </div>
+                <div class="agent-role">${agent.role || ''}</div>
+              </div>
+              <span class="agent-model-pill ${theme.modelClass}">
+                ${agent.model_label || 'Gemini'} · ${agent.effort || 'High'}
+              </span>
+            </div>
+
+            <div class="agent-rationale">
+              ${agent.model_rationale || 'Specialized task density allocation'}
+            </div>
+
+            <div class="agent-progress-box">
+              <div class="progress-meta">
+                <span style="color:var(--text-dim); text-transform:uppercase; font-size:11px;">${agent.stage || 'Progress'}</span>
+                <span class="progress-pct">${progress}%</span>
+              </div>
+              <div class="progress-track">
+                <div class="progress-fill ${theme.fill}" style="width: ${progress}%"></div>
+              </div>
+            </div>
+
+            <div class="agent-task">
+              <span class="task-icon">▶</span>
+              <span>${agent.current_task || 'Processing assigned work items...'}</span>
+            </div>
+
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-size:11px; font-family:var(--font-mono); color:var(--text-dim);">OWNED FILES</span>
+              <span class="${statusBadgeClass}">${statusLabel}</span>
+            </div>
+            <div class="agent-chips">
+              ${fileChips}
+            </div>
+          </div>
+        `;
+      }
+      container.innerHTML = html;
+    }
+
+    function renderPipeline(stages) {
+      const container = document.getElementById('pipeline-flow');
+      if (!stages || stages.length === 0) return;
+
+      let html = '';
+      stages.forEach((st, idx) => {
+        const statusClass = st.status === 'completed' ? 'completed' : (st.status === 'running' ? 'running' : 'pending');
+        const badgeClass = `stage-status-badge ${statusClass}`;
+        html += `
+          <div class="stage-card ${statusClass}">
+            <div class="stage-top">
+              <span class="stage-num">0${idx + 1}</span>
+              <span class="${badgeClass}">${st.status}</span>
+            </div>
+            <div class="stage-name">${st.name}</div>
+            <div class="stage-desc">${st.desc}</div>
+            <div class="stage-agent-tag">
+              <span style="color:var(--cyan-glow);">◆</span> ${st.badge || st.agent}
+            </div>
+          </div>
+        `;
+      });
+      container.innerHTML = html;
+    }
+
+    function renderVerificationMatrix(gates) {
+      const container = document.getElementById('gate-list');
+      if (!gates || gates.length === 0) return;
+
+      let html = '';
+      gates.forEach(g => {
+        const statusClass = g.status === 'passing' ? 'passing' : (g.status === 'running' ? 'running' : 'pending');
+        html += `
+          <div class="gate-item">
+            <div class="gate-info">
+              <div class="gate-title">${g.gate}</div>
+              <div class="gate-rule">${g.rule}</div>
+              <div class="gate-cmd">${g.standard}</div>
+            </div>
+            <div class="gate-status-pill ${statusClass}">${g.status}</div>
+          </div>
+        `;
+      });
+      container.innerHTML = html;
+    }
+
+    function renderFileExplorer(workspace) {
+      const tbody = document.getElementById('file-table-body');
+      const recent = workspace.recent_files || [];
+      if (recent.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-dim); padding:20px;">No files tracked yet.</td></tr>`;
+        return;
+      }
+
+      let html = '';
+      recent.forEach(f => {
+        const ownerClass = `owner-${f.owner || 'workspace'}`;
+        const sizeKb = (f.size / 1024).toFixed(1);
+        html += `
+          <tr>
+            <td class="file-path">${f.path}</td>
+            <td><span class="owner-pill ${ownerClass}">${f.owner}</span></td>
+            <td style="font-family:var(--font-mono);">${f.loc.toLocaleString()}</td>
+            <td style="font-family:var(--font-mono); color:var(--text-dim);">${sizeKb} KB</td>
+            <td style="font-family:var(--font-mono); color:var(--text-dim);">${f.time_str || '--'}</td>
+          </tr>
+        `;
+      });
+      tbody.innerHTML = html;
+
+      // Summary chips
+      const summaryContainer = document.getElementById('workspace-summary-chips');
+      const chips = [];
+      if (workspace.has_golden) chips.push('<span class="file-chip" style="color:var(--violet-glow); border-color:var(--violet-dim);">golden-template: locked</span>');
+      if (workspace.has_venv) chips.push('<span class="file-chip" style="color:var(--emerald-glow); border-color:var(--emerald-dim);">.venv: offline uv</span>');
+      if (workspace.has_manifest) chips.push('<span class="file-chip" style="color:var(--cyan-glow); border-color:var(--cyan-dim);">manifest: present</span>');
+      if (workspace.has_artifacts) chips.push('<span class="file-chip" style="color:var(--emerald-glow); border-color:var(--emerald-dim);">artifacts: ready</span>');
+      summaryContainer.innerHTML = chips.join(' ');
+    }
+
+    // Zero-CORS Live Poller
+    function injectPollScript() {
+      if (!isPolling) return;
+
+      if (activeScriptTag) {
+        activeScriptTag.remove();
+        activeScriptTag = null;
+      }
+
+      const script = document.createElement('script');
+      script.src = `./status.js?t=${Date.now()}`;
+      script.async = true;
+
+      script.onload = () => {
+        // Callback will trigger __onForgeTelemetry if present
+      };
+
+      script.onerror = () => {
+        // Silently retry next tick if file is momentarily in-write
+      };
+
+      activeScriptTag = script;
+      document.body.appendChild(script);
+    }
+
+    // Global callback invoked by status.js
+    window.__onForgeTelemetry = function(data) {
+      updateDashboard(data);
+    };
+
+    function startPolling() {
+      if (pollTimer) clearInterval(pollTimer);
+      pollTimer = setInterval(injectPollScript, pollIntervalMs);
+      injectPollScript(); // Immediate first fetch
+    }
+
+    // Toggle Polling
+    const btnToggle = document.getElementById('btn-toggle-poll');
+    btnToggle.addEventListener('click', () => {
+      isPolling = !isPolling;
+      const indicator = document.getElementById('poll-indicator');
+      const label = document.getElementById('poll-btn-label');
+      if (isPolling) {
+        indicator.style.color = 'var(--cyan-glow)';
+        label.textContent = 'Pause Live';
+        startPolling();
+      } else {
+        indicator.style.color = 'var(--text-dim)';
+        label.textContent = 'Resume Live';
+        if (pollTimer) clearInterval(pollTimer);
+      }
+    });
+
+    // Check if initial payload already loaded
+    if (window.__FORGE_TELEMETRY__) {
+      updateDashboard(window.__FORGE_TELEMETRY__);
+    }
+
+    // Start live polling loop
+    startPolling();
+  </script>
+  <!-- Initial status load -->
+  <script src="./status.js"></script>
+</body>
+</html>

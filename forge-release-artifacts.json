@@ -1,0 +1,53 @@
+{
+  "protocol_revision": "2026-07-28",
+  "container_image": "ghcr.io/acme/forged-mcp-acme-incidents:1.0.0",
+  "client_config": {
+    "mcpServers": {
+      "acme-incidents": {
+        "command": "docker",
+        "args": [
+          "run",
+          "-i",
+          "--rm",
+          "-e",
+          "ACME_BASE_URL",
+          "-e",
+          "ACME_API_TOKEN",
+          "ghcr.io/acme/forged-mcp-acme-incidents:1.0.0"
+        ],
+        "env": {
+          "ACME_BASE_URL": "${ACME_BASE_URL}",
+          "ACME_API_TOKEN": "${ACME_API_TOKEN}"
+        }
+      }
+    }
+  },
+  "governance": {
+    "required_labels": [
+      "needs-security-review",
+      "mcp-2026-07-28"
+    ],
+    "requires_appsec_destructive_signoff": true,
+    "mutating_tools": [
+      {
+        "name": "create_incident",
+        "method": "POST",
+        "path": "/incidents",
+        "destructiveHint": false
+      },
+      {
+        "name": "update_incident_status",
+        "method": "PUT",
+        "path": "/incidents/{incident_id}/status",
+        "destructiveHint": false
+      },
+      {
+        "name": "delete_incident",
+        "method": "DELETE",
+        "path": "/incidents/{incident_id}",
+        "destructiveHint": true
+      }
+    ],
+    "total_tools": 5
+  }
+}

@@ -1,0 +1,162 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Cloud Billing & FinOps API",
+    "version": "2.1.0",
+    "description": "Stateless MCP 2026-07-28 server for multi-cloud billing invoices, budget thresholds, and cost anomaly alerts."
+  },
+  "servers": [
+    {
+      "url": "https://billing.acme.internal/v2",
+      "description": "Internal FinOps Billing Service"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "ApiKeyHeader": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Billing-Key"
+      }
+    },
+    "parameters": {
+      "AccountIdParam": {
+        "name": "account_id",
+        "in": "path",
+        "required": true,
+        "description": "Cloud billing account identifier.",
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        }
+      },
+      "TenantHeaderParam": {
+        "name": "tenant_id",
+        "in": "header",
+        "required": true,
+        "description": "Tenant organization slug mirrored via x-mcp-header.",
+        "x-mcp-header": "X-Tenant-Id",
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        }
+      }
+    },
+    "schemas": {
+      "BudgetUpsertRequest": {
+        "type": "object",
+        "required": ["monthly_limit_usd"],
+        "properties": {
+          "monthly_limit_usd": {
+            "type": "integer",
+            "description": "Monthly spend cap in USD."
+          },
+          "alert_threshold_pct": {
+            "type": "integer",
+            "default": 80,
+            "description": "Percentage threshold at which to emit cost alerts."
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/accounts/{account_id}/invoices": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/AccountIdParam"
+        }
+      ],
+      "get": {
+        "operationId": "list_invoices",
+        "summary": "List Account Invoices",
+        "description": "Retrieve monthly billing invoices for a cloud account with optional billing period filter.",
+        "tags": ["invoices"],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TenantHeaderParam"
+          },
+          {
+            "name": "billing_period",
+            "in": "query",
+            "required": false,
+            "description": "Billing month in YYYY-MM format.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Invoice list for account."
+          }
+        }
+      }
+    },
+    "/accounts/{account_id}/budget": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/AccountIdParam"
+        }
+      ],
+      "get": {
+        "operationId": "get_budget",
+        "summary": "Get Account Budget",
+        "description": "Fetch current monthly budget limit and burn rate for a cloud billing account.",
+        "tags": ["budgets"],
+        "responses": {
+          "200": {
+            "description": "Current budget status."
+          }
+        }
+      },
+      "put": {
+        "operationId": "upsert_budget",
+        "summary": "Upsert Account Budget",
+        "description": "Configure or update the monthly spend cap and alert threshold for a cloud account.",
+        "tags": ["budgets"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BudgetUpsertRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated budget configuration."
+          }
+        }
+      }
+    },
+    "/alerts/{alert_id}": {
+      "delete": {
+        "operationId": "dismiss_cost_alert",
+        "summary": "Dismiss Cost Anomaly Alert",
+        "description": "Permanently dismiss an acknowledged cost anomaly alert by its identifier.",
+        "tags": ["alerts"],
+        "parameters": [
+          {
+            "name": "alert_id",
+            "in": "path",
+            "required": true,
+            "description": "Unique cost anomaly alert identifier.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Cost alert dismissed."
+          }
+        }
+      }
+    }
+  }
+}
