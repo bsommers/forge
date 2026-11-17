@@ -1,0 +1,33 @@
+{
+  "protocol_revision": "2026-07-28",
+  "server_name": "acme-incidents",
+  "title": "Acme Incident Management MCP",
+  "version": "1.0.0",
+  "description": "Stateless MCP 2026-07-28 server to query and triage operational incidents in Acme Cloud.",
+  "upstream": {
+    "base_url_env": "ACME_BASE_URL",
+    "default_base_url": "https://api.acme.internal/v1",
+    "timeout_seconds": 15.0,
+    "max_response_bytes": 32768
+  },
+  "auth": {
+    "type": "bearer",
+    "token_env": "ACME_API_TOKEN"
+  },
+  "tools": [
+    {
+      "name": "get_incident",
+      "title": "Get Incident Summary",
+      "method": "GET",
+      "path": "/incidents/{incident_id}",
+      "description": "Fetch concise details and current operational status for a single incident by ID.",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
+      "required_params": ["incident_id"]
+    }
+  ]
+}
