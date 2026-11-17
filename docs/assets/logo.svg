@@ -1,0 +1,184 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 380" width="1200" height="380" role="img">
+  <defs>
+    <linearGradient id="bg-basalt" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0b0604" />
+      <stop offset="52%" stop-color="#170b06" />
+      <stop offset="100%" stop-color="#090403" />
+    </linearGradient>
+    <linearGradient id="coal-bed" x1="0%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#991b1b" stop-opacity="0.72" />
+      <stop offset="38%" stop-color="#ea580c" stop-opacity="0.34" />
+      <stop offset="100%" stop-color="#090403" stop-opacity="0" />
+    </linearGradient>
+    <radialGradient id="hearth-aura" cx="50%" cy="58%" r="58%">
+      <stop offset="0%" stop-color="#ff5500" stop-opacity="0.24" />
+      <stop offset="48%" stop-color="#d97706" stop-opacity="0.10" />
+      <stop offset="100%" stop-color="#0b0604" stop-opacity="0" />
+    </radialGradient>
+    <linearGradient id="molten-gold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fef08a" />
+      <stop offset="45%" stop-color="#fbbf24" />
+      <stop offset="100%" stop-color="#ea580c" />
+    </linearGradient>
+    <linearGradient id="molten-channel" x1="0%" y1="50%" x2="100%" y2="50%">
+      <stop offset="0%" stop-color="#f97316" />
+      <stop offset="50%" stop-color="#ffd166" />
+      <stop offset="100%" stop-color="#fbbf24" />
+    </linearGradient>
+    <linearGradient id="flame-outer" x1="50%" y1="100%" x2="50%" y2="0%">
+      <stop offset="0%" stop-color="#991b1b" />
+      <stop offset="45%" stop-color="#ef4444" />
+      <stop offset="100%" stop-color="#f97316" />
+    </linearGradient>
+    <linearGradient id="flame-inner" x1="50%" y1="100%" x2="50%" y2="0%">
+      <stop offset="0%" stop-color="#f97316" />
+      <stop offset="55%" stop-color="#fbbf24" />
+      <stop offset="100%" stop-color="#fef08a" />
+    </linearGradient>
+    <linearGradient id="dwarven-iron" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#473e39" />
+      <stop offset="45%" stop-color="#292220" />
+      <stop offset="100%" stop-color="#14100f" />
+    </linearGradient>
+    <linearGradient id="slab-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1b0e09" stop-opacity="0.94" />
+      <stop offset="100%" stop-color="#0f0705" stop-opacity="0.96" />
+    </linearGradient>
+    <pattern id="khazad-lattice" width="64" height="64" patternUnits="userSpaceOnUse">
+      <path d="M 32 0 L 64 32 L 32 64 L 0 32 Z" fill="none" stroke="#ff6a00" stroke-width="0.9" stroke-opacity="0.14" />
+      <path d="M 16 16 L 32 4 L 48 16 M 16 48 L 32 60 L 48 48" fill="none" stroke="#d97706" stroke-width="0.8" stroke-opacity="0.13" />
+      <polygon points="32,28 36,32 32,36 28,32" fill="#fbbf24" fill-opacity="0.15" />
+    </pattern>
+  </defs>
+  <rect width="1200" height="380" fill="url(#bg-basalt)" />
+  <rect width="1200" height="380" fill="url(#khazad-lattice)" />
+  <rect width="1200" height="380" fill="url(#hearth-aura)" />
+  <rect x="0" y="235" width="1200" height="145" fill="url(#coal-bed)" />
+  <g id="coal-facets">
+    <polygon points="12,380 20,358 45,360 73,360 79,380" fill="#991b1b" fill-opacity="0.28" />
+    <polygon points="87,380 95,353 120,355 148,355 154,380" fill="#dc2626" fill-opacity="0.38" />
+    <polygon points="162,380 170,348 195,360 223,350 229,380" fill="#ea580c" fill-opacity="0.48" />
+    <polygon points="237,380 245,358 270,355 298,360 304,380" fill="#f97316" fill-opacity="0.28" />
+    <polygon points="312,380 320,353 345,360 373,355 379,380" fill="#fbbf24" fill-opacity="0.38" />
+    <polygon points="387,380 395,348 420,355 448,350 454,380" fill="#991b1b" fill-opacity="0.48" />
+    <polygon points="462,380 470,358 495,360 523,360 529,380" fill="#dc2626" fill-opacity="0.28" />
+    <polygon points="537,380 545,353 570,355 598,355 604,380" fill="#ea580c" fill-opacity="0.38" />
+    <polygon points="612,380 620,348 645,360 673,350 679,380" fill="#f97316" fill-opacity="0.48" />
+    <polygon points="687,380 695,358 720,355 748,360 754,380" fill="#fbbf24" fill-opacity="0.28" />
+    <polygon points="762,380 770,353 795,360 823,355 829,380" fill="#991b1b" fill-opacity="0.38" />
+    <polygon points="837,380 845,348 870,355 898,350 904,380" fill="#dc2626" fill-opacity="0.48" />
+    <polygon points="912,380 920,358 945,360 973,360 979,380" fill="#ea580c" fill-opacity="0.28" />
+    <polygon points="987,380 995,353 1020,355 1048,355 1054,380" fill="#f97316" fill-opacity="0.38" />
+    <polygon points="1062,380 1070,348 1095,360 1123,350 1129,380" fill="#fbbf24" fill-opacity="0.48" />
+    <polygon points="1137,380 1145,358 1170,355 1198,360 1204,380" fill="#991b1b" fill-opacity="0.28" />
+  </g>
+  <g id="ember-sparks">
+    <circle cx="337.5" cy="330.3" r="1.3" fill="#ffd166" fill-opacity="0.63" />
+    <circle cx="1044.5" cy="302.6" r="2.1" fill="#ff7b00" fill-opacity="0.66" />
+    <circle cx="607.5" cy="278.2" r="3.0" fill="#ff3b00" fill-opacity="0.69" />
+    <circle cx="170.6" cy="255.8" r="3.8" fill="#fbbf24" fill-opacity="0.47" />
+    <circle cx="877.6" cy="234.6" r="1.3" fill="#ffd166" fill-opacity="0.49" />
+    <circle cx="440.6" cy="214.3" r="2.1" fill="#ff7b00" fill-opacity="0.52" />
+    <circle cx="1147.6" cy="194.9" r="3.0" fill="#ff3b00" fill-opacity="0.54" />
+    <circle cx="710.7" cy="176.0" r="3.8" fill="#fbbf24" fill-opacity="0.56" />
+    <circle cx="273.7" cy="157.7" r="1.3" fill="#ffd166" fill-opacity="0.58" />
+    <circle cx="980.7" cy="139.8" r="2.1" fill="#ff7b00" fill-opacity="0.60" />
+    <circle cx="543.8" cy="122.3" r="3.0" fill="#ff3b00" fill-opacity="0.63" />
+    <circle cx="106.8" cy="105.2" r="3.8" fill="#fbbf24" fill-opacity="0.65" />
+    <circle cx="813.8" cy="88.4" r="1.3" fill="#ffd166" fill-opacity="0.67" />
+    <circle cx="376.9" cy="71.9" r="2.1" fill="#ff7b00" fill-opacity="0.68" />
+    <circle cx="1083.9" cy="336.3" r="3.0" fill="#ff3b00" fill-opacity="0.62" />
+    <circle cx="646.9" cy="307.5" r="3.8" fill="#fbbf24" fill-opacity="0.66" />
+    <circle cx="210.0" cy="282.7" r="1.3" fill="#ffd166" fill-opacity="0.69" />
+    <circle cx="917.0" cy="259.9" r="2.1" fill="#ff7b00" fill-opacity="0.46" />
+    <circle cx="480.0" cy="238.5" r="3.0" fill="#ff3b00" fill-opacity="0.49" />
+    <circle cx="43.1" cy="218.1" r="3.8" fill="#fbbf24" fill-opacity="0.51" />
+    <circle cx="750.1" cy="198.5" r="1.3" fill="#ffd166" fill-opacity="0.53" />
+    <circle cx="313.1" cy="179.6" r="2.1" fill="#ff7b00" fill-opacity="0.56" />
+    <circle cx="1020.1" cy="161.1" r="3.0" fill="#ff3b00" fill-opacity="0.58" />
+    <circle cx="583.2" cy="143.2" r="3.8" fill="#fbbf24" fill-opacity="0.60" />
+    <circle cx="146.2" cy="125.6" r="1.3" fill="#ffd166" fill-opacity="0.62" />
+    <circle cx="853.2" cy="108.4" r="2.1" fill="#ff7b00" fill-opacity="0.64" />
+    <circle cx="416.3" cy="91.6" r="3.0" fill="#ff3b00" fill-opacity="0.66" />
+    <circle cx="1123.3" cy="75.0" r="3.8" fill="#fbbf24" fill-opacity="0.68" />
+    <circle cx="686.3" cy="342.8" r="1.3" fill="#ffd166" fill-opacity="0.61" />
+    <circle cx="249.4" cy="312.6" r="2.1" fill="#ff7b00" fill-opacity="0.65" />
+    <circle cx="956.4" cy="287.3" r="3.0" fill="#ff3b00" fill-opacity="0.68" />
+    <circle cx="519.4" cy="264.2" r="3.8" fill="#fbbf24" fill-opacity="0.46" />
+    <circle cx="82.5" cy="242.5" r="1.3" fill="#ffd166" fill-opacity="0.48" />
+    <circle cx="789.5" cy="222.0" r="2.1" fill="#ff7b00" fill-opacity="0.51" />
+  </g>
+  <polygon points="42.0,20.0 1158.0,20.0 1180.0,42.0 1180.0,338.0 1158.0,360.0 42.0,360.0 20.0,338.0 20.0,42.0" fill="url(#slab-grad)" stroke="#d97706" stroke-width="2" stroke-opacity="0.85" />
+  <g id="khazad-brackets">
+    <path d="M 20,62 L 20,37.64 L 37.64,20 L 62,20" fill="none" stroke="#fbbf24" stroke-width="3.0" stroke-linecap="square" />
+    <path d="M 26,58 L 26,40.64 L 40.64,26 L 58,26" fill="none" stroke="#f97316" stroke-width="1.4" stroke-linecap="square" />
+    <path d="M 1138,20 L 1162.36,20 L 1180,37.64 L 1180,62" fill="none" stroke="#fbbf24" stroke-width="3.0" stroke-linecap="square" />
+    <path d="M 1142,26 L 1159.36,26 L 1174,40.64 L 1174,58" fill="none" stroke="#f97316" stroke-width="1.4" stroke-linecap="square" />
+    <path d="M 20,318 L 20,342.36 L 37.64,360 L 62,360" fill="none" stroke="#fbbf24" stroke-width="3.0" stroke-linecap="square" />
+    <path d="M 26,322 L 26,339.36 L 40.64,354 L 58,354" fill="none" stroke="#f97316" stroke-width="1.4" stroke-linecap="square" />
+    <path d="M 1138,360 L 1162.36,360 L 1180,342.36 L 1180,318" fill="none" stroke="#fbbf24" stroke-width="3.0" stroke-linecap="square" />
+    <path d="M 1142,354 L 1159.36,354 L 1174,339.36 L 1174,322" fill="none" stroke="#f97316" stroke-width="1.4" stroke-linecap="square" />
+  </g>
+  <g transform="translate(186.0,190.0) scale(0.640) translate(-256,-256)">
+    <polygon points="462.9,341.7 341.7,462.9 170.3,462.9 49.1,341.7 49.1,170.3 170.3,49.1 341.7,49.1 462.9,170.3" fill="#120805" stroke="url(#molten-gold)" stroke-width="15" />
+    <polygon points="438.9,331.8 331.8,438.9 180.2,438.9 73.1,331.8 73.1,180.2 180.2,73.1 331.8,73.1 438.9,180.2" fill="#190b07" stroke="#d97706" stroke-width="4" stroke-opacity="0.75" />
+    <polygon points="416.8,322.6 322.6,416.8 189.4,416.8 95.2,322.6 95.2,189.4 189.4,95.2 322.6,95.2 416.8,189.4" fill="#0d0503" stroke="#f97316" stroke-width="3" stroke-dasharray="22 10" />
+    <polygon points="256,42 266,52 256,62 246,52" fill="#ffd166" />
+    <polygon points="256,450 266,460 256,470 246,460" fill="#ffd166" />
+    <polygon points="42,256 52,246 62,256 52,266" fill="#ffd166" />
+    <polygon points="450,256 460,246 470,256 460,266" fill="#ffd166" />
+    <g stroke="#78350f" stroke-width="9" stroke-linecap="round" opacity="0.75">
+      <line x1="152" y1="378" x2="344" y2="150" />
+      <line x1="360" y1="378" x2="168" y2="150" />
+    </g>
+    <path d="M 118 390 Q 186 356 256 366 Q 326 356 394 390 L 362 426 L 150 426 Z" fill="#991b1b" stroke="#ef4444" stroke-width="3" />
+    <polygon points="148,412 184,382 222,404 258,378 298,404 334,382 366,412" fill="#f97316" opacity="0.88" />
+    <polygon points="178,414 214,392 256,408 296,390 332,414" fill="#ffd166" opacity="0.85" />
+    <path d="M 134 388 C 114 320 148 258 176 218 C 174 260 198 268 206 232 C 218 182 244 150 256 118 C 274 156 294 188 304 234 C 318 264 338 252 338 214 C 368 256 396 320 378 388 Z" fill="url(#flame-outer)" opacity="0.95" />
+    <path d="M 166 388 C 156 336 180 286 204 256 C 206 286 224 288 234 252 C 244 214 252 190 258 164 C 270 196 282 224 286 258 C 298 286 314 278 316 252 C 340 288 354 338 346 388 Z" fill="url(#flame-inner)" opacity="0.95" />
+    <path d="M 204 388 C 202 350 222 318 256 278 C 290 318 310 350 308 388 Z" fill="#fef08a" opacity="0.9" />
+    <path d="M 92 268 L 176 250 L 176 242 L 368 242 L 368 256 L 408 256 L 396 286 L 350 286 L 314 314 L 314 352 L 354 382 L 354 398 L 166 398 L 166 382 L 206 352 L 206 314 L 168 292 Z" fill="url(#dwarven-iron)" stroke="url(#molten-gold)" stroke-width="8" stroke-linejoin="miter" />
+    <line x1="176" y1="248" x2="366" y2="248" stroke="#fef08a" stroke-width="5" />
+    <polygon points="260,302 284,332 260,362 236,332" fill="none" stroke="#fbbf24" stroke-width="5" />
+    <polygon points="260,318 271,332 260,346 249,332" fill="#ff7b00" />
+    <g transform="translate(262, 232) rotate(-28)">
+      <rect x="-10" y="-138" width="20" height="118" rx="3" fill="#78350f" stroke="#fbbf24" stroke-width="4" />
+      <polygon points="-66,-68 66,-68 78,-52 78,-18 66,-4 -66,-4 -78,-18 -78,-52" fill="url(#dwarven-iron)" stroke="url(#molten-gold)" stroke-width="6" />
+      <polygon points="0,-54 18,-36 0,-18 -18,-36" fill="#fbbf24" />
+    </g>
+    <polygon points="256,214 264,232 284,236 266,244 256,262 246,244 228,236 248,232" fill="#fef08a" />
+    <g stroke="#ffd166" stroke-width="5" stroke-linecap="round">
+      <line x1="224" y1="220" x2="184" y2="188" />
+      <line x1="290" y1="218" x2="338" y2="182" />
+      <line x1="214" y1="238" x2="162" y2="226" />
+      <line x1="298" y1="238" x2="354" y2="224" />
+    </g>
+    <circle cx="172" cy="178" r="6" fill="#fef08a" />
+    <circle cx="348" cy="174" r="6" fill="#ffd166" />
+    <circle cx="148" cy="222" r="5" fill="#ff7b00" />
+    <circle cx="368" cy="220" r="5" fill="#ff7b00" />
+  </g>
+  <polygon points="358,82 365,89 358,96 351,89" fill="#fbbf24" />
+  <text x="376" y="94" fill="#fbbf24" font-family="ui-monospace, 'Cascadia Code', 'Fira Code', Menlo, Consolas, monospace" font-size="14" font-weight="700" letter-spacing="2.6">KHAZAD-DÛM GREAT FORGE · MCP SPECIFICATION 2026-07-28</text>
+  <text x="358" y="160" fill="#7c2d12" font-family="Georgia, 'Palatino Linotype', 'Times New Roman', serif" font-size="54" font-weight="800" letter-spacing="2.2">MCP SERVER FORGE</text>
+  <text x="356" y="157" fill="#f8fafc" font-family="Georgia, 'Palatino Linotype', 'Times New Roman', serif" font-size="54" font-weight="800" letter-spacing="2.2" stroke="#fbbf24" stroke-width="0.9">MCP SERVER FORGE</text>
+  <text x="356" y="202" fill="#e2e8f0" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="18.5" font-weight="600">Forged in the Deep Halls · OpenAPI 3.x -&gt; Hardened FastMCP 4.x (MCP 2026-07-28)</text>
+  <line x1="356" y1="236" x2="1154" y2="236" stroke="url(#molten-channel)" stroke-width="2.4" />
+  <polygon points="755,229 764,236 755,243 746,236" fill="#fef08a" />
+  <polygon points="364.0,272.0 550.0,272.0 558.0,280.0 558.0,308.0 550.0,316.0 364.0,316.0 356.0,308.0 356.0,280.0" fill="#071f17" stroke="#10b981" stroke-width="1.8" />
+  <circle cx="366" cy="294" r="2.2" fill="#10b981" />
+  <circle cx="548" cy="294" r="2.2" fill="#10b981" />
+  <text x="457" y="299" fill="#10b981" font-family="ui-monospace, 'Cascadia Code', 'Fira Code', Menlo, Consolas, monospace" font-size="13" font-weight="700" text-anchor="middle">5 GATES TEMPERED</text>
+  <polygon points="580.0,272.0 786.0,272.0 794.0,280.0 794.0,308.0 786.0,316.0 580.0,316.0 572.0,308.0 572.0,280.0" fill="#241608" stroke="#fbbf24" stroke-width="1.8" />
+  <circle cx="582" cy="294" r="2.2" fill="#fbbf24" />
+  <circle cx="784" cy="294" r="2.2" fill="#fbbf24" />
+  <text x="683" y="299" fill="#fbbf24" font-family="ui-monospace, 'Cascadia Code', 'Fira Code', Menlo, Consolas, monospace" font-size="13" font-weight="700" text-anchor="middle">100% TOOL BRANCH COV</text>
+  <polygon points="816.0,272.0 986.0,272.0 994.0,280.0 994.0,308.0 986.0,316.0 816.0,316.0 808.0,308.0 808.0,280.0" fill="#261107" stroke="#f97316" stroke-width="1.8" />
+  <circle cx="818" cy="294" r="2.2" fill="#f97316" />
+  <circle cx="984" cy="294" r="2.2" fill="#f97316" />
+  <text x="901" y="299" fill="#f97316" font-family="ui-monospace, 'Cascadia Code', 'Fira Code', Menlo, Consolas, monospace" font-size="13" font-weight="700" text-anchor="middle">5 STATELESS TOOLS</text>
+  <polygon points="1016.0,272.0 1148.0,272.0 1156.0,280.0 1156.0,308.0 1148.0,316.0 1016.0,316.0 1008.0,308.0 1008.0,280.0" fill="#241809" stroke="#ffd166" stroke-width="1.8" />
+  <circle cx="1018" cy="294" r="2.2" fill="#ffd166" />
+  <circle cx="1146" cy="294" r="2.2" fill="#ffd166" />
+  <text x="1082" y="299" fill="#ffd166" font-family="ui-monospace, 'Cascadia Code', 'Fira Code', Menlo, Consolas, monospace" font-size="13" font-weight="700" text-anchor="middle">SEP-2575 / 2567</text>
+</svg>

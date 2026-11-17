@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MCP Server Forge (2026-07-28) — Khazad-dûm Great Foundry Showcase</title>
+  <meta name="description" content="Transform OpenAPI 3.x specs into hardened, stateless FastMCP 4.x servers compliant with MCP 2026-07-28." />
+  <meta property="og:title" content="MCP Server Forge (2026-07-28)" />
+  <meta property="og:description" content="OpenAPI 3.x Normalizer, Locked FastMCP 4.x Golden Template & 5-Gate Self-Healing Verification Harness." />
+  <meta property="og:image" content="assets/logo.png" />
+  <link rel="icon" type="image/svg+xml" href="assets/icon.svg" />
+  <style>
+    :root {
+      --bg-basalt: #0b0604;
+      --bg-coal: #160b06;
+      --panel: rgba(24, 13, 8, 0.90);
+      --border-gold: rgba(251, 191, 36, 0.38);
+      --border-fire: rgba(249, 115, 22, 0.55);
+      --gold: #fbbf24;
+      --amber: #f97316;
+      --ember: #ef4444;
+      --emerald: #10b981;
+      --text: #f8fafc;
+      --muted: #cbd5e1;
+      --dim: #94a3b8;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--text);
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      background-color: var(--bg-basalt);
+      background-image:
+        radial-gradient(circle at 50% 0%, rgba(249, 115, 22, 0.20), transparent 55%),
+        radial-gradient(circle at 85% 90%, rgba(239, 68, 68, 0.16), transparent 45%),
+        linear-gradient(rgba(251, 191, 36, 0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(251, 191, 36, 0.05) 1px, transparent 1px);
+      background-size: 100% 100%, 100% 100%, 40px 40px, 40px 40px;
+      line-height: 1.6;
+    }
+    a { color: var(--gold); text-decoration: none; }
+    a:hover { text-decoration: underline; color: #fde68a; }
+    .wrap { max-width: 1180px; margin: 0 auto; padding: 32px 20px 72px; }
+    .hero {
+      border: 1.5px solid var(--border-fire);
+      border-radius: 18px;
+      background: var(--panel);
+      padding: 28px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.65), inset 0 0 32px rgba(249, 115, 22, 0.08);
+    }
+    .hero img.banner { width: 100%; border-radius: 12px; display: block; margin-bottom: 20px; }
+    .badges { display: flex; flex-wrap: wrap; gap: 10px; margin: 14px 0 20px; }
+    .pill {
+      font-family: ui-monospace, Menlo, Consolas, monospace;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: rgba(249, 115, 22, 0.14);
+      border: 1px solid var(--border-gold);
+      color: var(--gold);
+    }
+    .pill.ok { background: rgba(16, 185, 129, 0.14); border-color: rgba(16, 185, 129, 0.5); color: #6ee7b7; }
+    .cta-row { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 18px; }
+    .btn {
+      display: inline-block;
+      padding: 10px 18px;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: 14px;
+      border: 1px solid var(--border-gold);
+      background: linear-gradient(135deg, #ea580c, #b45309);
+      color: #fff;
+    }
+    .btn.secondary { background: rgba(15, 23, 42, 0.7); color: var(--gold); }
+    h2 {
+      margin-top: 48px;
+      font-size: 26px;
+      letter-spacing: 0.4px;
+      border-bottom: 1px solid var(--border-gold);
+      padding-bottom: 10px;
+      color: #fef3c7;
+    }
+    .gallery { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 20px; margin-top: 20px; }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border-gold);
+      border-radius: 14px;
+      padding: 18px;
+      transition: transform 0.18s ease, border-color 0.18s ease;
+    }
+    .card:hover { transform: translateY(-2px); border-color: var(--amber); }
+    .card img { width: 100%; border-radius: 10px; border: 1px solid rgba(251, 191, 36, 0.22); margin-bottom: 12px; }
+    .card h3 { margin: 4px 0 8px; font-size: 18px; color: #fde68a; }
+    .card p { margin: 0; color: var(--muted); font-size: 14px; }
+    .controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 18px 0; }
+    .search {
+      flex: 1;
+      min-width: 220px;
+      padding: 10px 14px;
+      border-radius: 10px;
+      border: 1px solid var(--border-gold);
+      background: #0f0906;
+      color: var(--text);
+      font-size: 14px;
+    }
+    .tab {
+      cursor: pointer;
+      padding: 8px 14px;
+      border-radius: 999px;
+      border: 1px solid var(--border-gold);
+      background: #170d08;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .tab.active { background: var(--amber); color: #fff; border-color: var(--gold); }
+    .catalog { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 14px; }
+    .item-tag {
+      font-family: ui-monospace, Menlo, monospace;
+      font-size: 11px;
+      text-transform: uppercase;
+      color: var(--amber);
+      font-weight: 700;
+    }
+    pre {
+      background: #090503;
+      border: 1px solid var(--border-gold);
+      border-radius: 12px;
+      padding: 16px;
+      overflow-x: auto;
+      font-family: ui-monospace, Menlo, Consolas, monospace;
+      font-size: 13px;
+      color: #fde68a;
+    }
+    .doc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 14px; margin-top: 18px; }
+    @media (prefers-reduced-motion: reduce) {
+      .card { transition: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <img class="banner" src="assets/logo.svg" alt="MCP Server Forge Hero Banner" />
+      <p style="font-size:18px; color:var(--muted); margin:0;">
+        Forged in the deep halls: compile OpenAPI 3.x specifications into hardened, stateless
+        <strong>FastMCP 4.x</strong> servers targeting <strong>Model Context Protocol <code>2026-07-28</code></strong>
+        with locked Golden Templates and a 5-gate offline verification harness.
+      </p>
+      <div class="badges">
+        <span class="pill ok">5 / 5 GATES PASSING</span>
+        <span class="pill ok">100% TOOL BRANCH COVERAGE</span>
+        <span class="pill">MCP SPEC 2026-07-28</span>
+        <span class="pill">5 STATELESS INCIDENT TOOLS</span>
+        <span class="pill">SEP-2575 · SEP-2567 · SEP-2577</span>
+      </div>
+      <div class="cta-row">
+        <a class="btn" href="user-guide/README.md">Read the 5-Chapter User Guide</a>
+        <a class="btn secondary" href="ARCHITECTURE.md">System Architecture</a>
+        <a class="btn secondary" href="HOWTO.md">Operational Recipes</a>
+        <a class="btn secondary" href="brochure.md">Executive Brochure</a>
+        <a class="btn secondary" href="../dashboard/index.html">Live Build Dashboard</a>
+      </div>
+    </section>
+
+    <h2>Khazad-dûm Great Forge Illustrations &amp; Technical Schematics</h2>
+    <div class="gallery">
+      <article class="card">
+        <img src="assets/khazad-dum-hero.png" alt="Khazad-dum Great Forge Hall" />
+        <h3>The Great Forge Hall</h3>
+        <p>Immutable runtime infrastructure locked in stone (<code>:ro</code>) while stateless domain tools are hammered and tempered inside isolated writable overlays (<code>:rw</code>).</p>
+      </article>
+      <article class="card">
+        <img src="assets/khazad-dum-pipeline.png" alt="Five Connected Forge Chambers" />
+        <h3>Five Chambers of the Pipeline</h3>
+        <p>Smelt (OpenAPI Ingest) &rarr; Mold (Golden Template) &rarr; Hammer (Code Synthesis) &rarr; Temper (5-Gate Validator) &rarr; Seal (AppSec Release Governance).</p>
+      </article>
+      <article class="card">
+        <img src="assets/examples/architecture-overview.svg" alt="Architecture Overview Schematic" />
+        <h3>5-Stage Pipeline &amp; Runtime Schematic</h3>
+        <p>End-to-end data flow across <code>forge/</code>, <code>golden-template/</code>, <code>src/server.py</code>, and <code>ForgeResponseLimitingMiddleware</code>.</p>
+      </article>
+      <article class="card">
+        <img src="assets/examples/workflow-openapi-ingest.svg" alt="Stage 1 OpenAPI Ingest Workflow" />
+        <h3>Stage 1: OpenAPI Crucible &amp; SSRF Guard</h3>
+        <p>Inlines local <code>#/components/...</code> pointers, blocks external URIs, enforces <code>&lt;= 15</code> tools, and maps HTTP verbs to <code>ToolAnnotations</code>.</p>
+      </article>
+      <article class="card">
+        <img src="assets/examples/workflow-self-healing-sandbox.svg" alt="Stages 2 to 5 Self-Healing Sandbox" />
+        <h3>Stages 2–5: Self-Healing Hammer Loop</h3>
+        <p>Privilege-dropped container or deterministic <code>--local</code> synthesizer with up to 3 automated diagnostic repair iterations.</p>
+      </article>
+      <article class="card">
+        <img src="assets/examples/workflow-mcp-2026-gates.svg" alt="5-Gate Verification Harness" />
+        <h3>Stage 4: 5-Gate Tempering Harness</h3>
+        <p>Ruff + Bandit, <code>mypy --strict</code>, AST <code>SEP-2577</code> audit, <code>pytest &gt;= 85%</code> branch coverage, and subprocess <code>stdio</code> <code>server/discover</code>.</p>
+      </article>
+    </div>
+
+    <h2>Interactive Capability, Stage, Tool &amp; Gate Explorer</h2>
+    <div class="controls">
+      <input id="q" class="search" type="search" placeholder="Filter stages, tools, verification gates, or CLI modules..." />
+      <button class="tab active" data-cat="all">All (15)</button>
+      <button class="tab" data-cat="stage">Stages (5)</button>
+      <button class="tab" data-cat="tool">MCP Tools (5)</button>
+      <button class="tab" data-cat="gate">Security Gates (5)</button>
+    </div>
+    <div id="catalog" class="catalog"></div>
+
+    <h2>Instant Quickstart</h2>
+    <pre><code>git clone https://github.com/bsommers/forge.git &amp;&amp; cd forge
+uv sync
+.venv/bin/python scripts/validate_mcp.py
+
+# Forge a verified MCP 2026-07-28 server locally without Docker:
+.venv/bin/python -m forge.orchestrator \
+  --spec spec/acme-incidents.openapi.yaml \
+  --name acme-incidents \
+  --output-dir /tmp/forged-acme \
+  --local</code></pre>
+
+    <h2>Documentation Hub</h2>
+    <div class="doc-grid">
+      <a class="card" href="README.md"><h3>Documentation Index</h3><p>Complete directory map &amp; reading order.</p></a>
+      <a class="card" href="PURPOSE.md"><h3>Purpose &amp; Threat Model</h3><p>Problem statement, security boundaries, goals &amp; trade-offs.</p></a>
+      <a class="card" href="ARCHITECTURE.md"><h3>System Architecture</h3><p>Subsystems, Mermaid sequence/state/ER diagrams &amp; ADRs.</p></a>
+      <a class="card" href="HOWTO.md"><h3>How-To Recipes</h3><p>Setup, <code>--tag-filter</code> slicing, custom tools &amp; Docker deploy.</p></a>
+      <a class="card" href="brochure.md"><h3>Product Brochure</h3><p>Executive showcase, personas &amp; value pillars.</p></a>
+      <a class="card" href="user-guide/README.md"><h3>5-Chapter User Guide</h3><p>Bootstrap, forging, tool authoring, CLI reference &amp; FAQ.</p></a>
+    </div>
+  </div>
+
+  <script>
+    const ITEMS = [
+      {cat: "stage", title: "Stage 1: OpenAPI 3.x Normalizer", meta: "forge/ingest_openapi.py", desc: "Inlines internal $refs (<=25 depth), blocks external SSRF URIs, enforces <=15 tools, emits forge-manifest.json."},
+      {cat: "stage", title: "Stage 2: Golden Template Lock", meta: "golden-template/", desc: "Clones hardened FastMCP 4.x runtime, mounts core files read-only (:ro) and src/tools/ read-write (:rw)."},
+      {cat: "stage", title: "Stage 3: Tool & Test Synthesis", meta: "forge/orchestrator.py · forge/codegen.py", desc: "Runs privilege-dropped Docker coding agent or deterministic --local Python codegen."},
+      {cat: "stage", title: "Stage 4: Self-Healing Validator", meta: "scripts/validate_mcp.py", desc: "Executes 5 offline gates (--network=none) with up to 3 diagnostic self-healing retries."},
+      {cat: "stage", title: "Stage 5: Governance Packaging", meta: "forge-release-artifacts.json", desc: "Emits mcpServers client snippet and flags destructive tools for AppSec signoff."},
+      {cat: "tool", title: "get_incident", meta: "GET /incidents/{incident_id} · readOnly", desc: "Retrieve concise incident summary, severity, status, and assigned commander."},
+      {cat: "tool", title: "list_incidents", meta: "GET /incidents · readOnly", desc: "Paginated incident query supporting status, severity, bounded limit (1..100), and cursor."},
+      {cat: "tool", title: "create_incident", meta: "POST /incidents · x-mcp-header", desc: "Create sev1-sev4 incident with compliant RFC 9110 Idempotency-Key header mirroring."},
+      {cat: "tool", title: "update_incident_status", meta: "PUT /incidents/{incident_id}/status · idempotent", desc: "Transition incident across investigating, identified, monitoring, and resolved states."},
+      {cat: "tool", title: "delete_incident", meta: "DELETE /incidents/{incident_id} · destructiveHint", desc: "Permanently remove an incident record (triggers Stage 5 AppSec signoff requirement)."},
+      {cat: "gate", title: "Gate 1: Ruff + Bandit + T20", meta: "ruff check src tests", desc: "Enforces security checks (S), annotations (ANN), async hygiene, and bans print() on stdio."},
+      {cat: "gate", title: "Gate 2: Mypy Strict + Pydantic", meta: "mypy src", desc: "Verifies strict static types and typed BaseModel JSON Schema 2020-12 outputSchema."},
+      {cat: "gate", title: "Gate 3: AST & SEP-2577 Audit", meta: "audit_tools_ast()", desc: "Blocks os/subprocess/open/eval, deprecated sample()/list_roots(), and prompt injection."},
+      {cat: "gate", title: "Gate 4: Pytest + Branch Coverage", meta: "--cov=src/tools --cov-fail-under=85", desc: "Runs contract + respx unit tests achieving 100.0% branch coverage on src/tools/."},
+      {cat: "gate", title: "Gate 5: Subprocess STDIO Discover", meta: "PythonStdioTransport -> 2026-07-28", desc: "Probes real subprocess stdio server/discover negotiation and deterministic tools/list."}
+    ];
+    let activeCat = "all";
+    const catalogEl = document.getElementById("catalog");
+    const qEl = document.getElementById("q");
+
+    function render() {
+      const needle = qEl.value.trim().toLowerCase();
+      const filtered = ITEMS.filter(it =>
+        (activeCat === "all" || it.cat === activeCat) &&
+        (!needle || (it.title + " " + it.meta + " " + it.desc).toLowerCase().includes(needle))
+      );
+      catalogEl.innerHTML = filtered.map(it => `
+        <div class="card">
+          <div class="item-tag">${it.cat} · ${it.meta}</div>
+          <h3>${it.title}</h3>
+          <p>${it.desc}</p>
+        </div>
+      `).join("");
+    }
+    document.querySelectorAll(".tab").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".tab").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        activeCat = btn.dataset.cat;
+        render();
+      });
+    });
+    qEl.addEventListener("input", render);
+    render();
+  </script>
+</body>
+</html>

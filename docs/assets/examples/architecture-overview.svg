@@ -1,0 +1,190 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 620" width="1200" height="620" role="img">
+  <defs>
+    <linearGradient id="bg-basalt" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0b0604" />
+      <stop offset="52%" stop-color="#170b06" />
+      <stop offset="100%" stop-color="#090403" />
+    </linearGradient>
+    <linearGradient id="coal-bed" x1="0%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#991b1b" stop-opacity="0.72" />
+      <stop offset="38%" stop-color="#ea580c" stop-opacity="0.34" />
+      <stop offset="100%" stop-color="#090403" stop-opacity="0" />
+    </linearGradient>
+    <radialGradient id="hearth-aura" cx="50%" cy="58%" r="58%">
+      <stop offset="0%" stop-color="#ff5500" stop-opacity="0.24" />
+      <stop offset="48%" stop-color="#d97706" stop-opacity="0.10" />
+      <stop offset="100%" stop-color="#0b0604" stop-opacity="0" />
+    </radialGradient>
+    <linearGradient id="molten-gold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fef08a" />
+      <stop offset="45%" stop-color="#fbbf24" />
+      <stop offset="100%" stop-color="#ea580c" />
+    </linearGradient>
+    <linearGradient id="molten-channel" x1="0%" y1="50%" x2="100%" y2="50%">
+      <stop offset="0%" stop-color="#f97316" />
+      <stop offset="50%" stop-color="#ffd166" />
+      <stop offset="100%" stop-color="#fbbf24" />
+    </linearGradient>
+    <linearGradient id="flame-outer" x1="50%" y1="100%" x2="50%" y2="0%">
+      <stop offset="0%" stop-color="#991b1b" />
+      <stop offset="45%" stop-color="#ef4444" />
+      <stop offset="100%" stop-color="#f97316" />
+    </linearGradient>
+    <linearGradient id="flame-inner" x1="50%" y1="100%" x2="50%" y2="0%">
+      <stop offset="0%" stop-color="#f97316" />
+      <stop offset="55%" stop-color="#fbbf24" />
+      <stop offset="100%" stop-color="#fef08a" />
+    </linearGradient>
+    <linearGradient id="dwarven-iron" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#473e39" />
+      <stop offset="45%" stop-color="#292220" />
+      <stop offset="100%" stop-color="#14100f" />
+    </linearGradient>
+    <linearGradient id="slab-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1b0e09" stop-opacity="0.94" />
+      <stop offset="100%" stop-color="#0f0705" stop-opacity="0.96" />
+    </linearGradient>
+    <pattern id="khazad-lattice" width="64" height="64" patternUnits="userSpaceOnUse">
+      <path d="M 32 0 L 64 32 L 32 64 L 0 32 Z" fill="none" stroke="#ff6a00" stroke-width="0.9" stroke-opacity="0.14" />
+      <path d="M 16 16 L 32 4 L 48 16 M 16 48 L 32 60 L 48 48" fill="none" stroke="#d97706" stroke-width="0.8" stroke-opacity="0.13" />
+      <polygon points="32,28 36,32 32,36 28,32" fill="#fbbf24" fill-opacity="0.15" />
+    </pattern>
+  </defs>
+  <rect width="1200" height="620" fill="url(#bg-basalt)" />
+  <rect width="1200" height="620" fill="url(#khazad-lattice)" />
+  <rect width="1200" height="620" fill="url(#hearth-aura)" />
+  <rect x="0" y="384" width="1200" height="236" fill="url(#coal-bed)" />
+  <g id="coal-facets">
+    <polygon points="12,620 20,598 45,600 73,600 79,620" fill="#991b1b" fill-opacity="0.28" />
+    <polygon points="87,620 95,593 120,595 148,595 154,620" fill="#dc2626" fill-opacity="0.38" />
+    <polygon points="162,620 170,588 195,600 223,590 229,620" fill="#ea580c" fill-opacity="0.48" />
+    <polygon points="237,620 245,598 270,595 298,600 304,620" fill="#f97316" fill-opacity="0.28" />
+    <polygon points="312,620 320,593 345,600 373,595 379,620" fill="#fbbf24" fill-opacity="0.38" />
+    <polygon points="387,620 395,588 420,595 448,590 454,620" fill="#991b1b" fill-opacity="0.48" />
+    <polygon points="462,620 470,598 495,600 523,600 529,620" fill="#dc2626" fill-opacity="0.28" />
+    <polygon points="537,620 545,593 570,595 598,595 604,620" fill="#ea580c" fill-opacity="0.38" />
+    <polygon points="612,620 620,588 645,600 673,590 679,620" fill="#f97316" fill-opacity="0.48" />
+    <polygon points="687,620 695,598 720,595 748,600 754,620" fill="#fbbf24" fill-opacity="0.28" />
+    <polygon points="762,620 770,593 795,600 823,595 829,620" fill="#991b1b" fill-opacity="0.38" />
+    <polygon points="837,620 845,588 870,595 898,590 904,620" fill="#dc2626" fill-opacity="0.48" />
+    <polygon points="912,620 920,598 945,600 973,600 979,620" fill="#ea580c" fill-opacity="0.28" />
+    <polygon points="987,620 995,593 1020,595 1048,595 1054,620" fill="#f97316" fill-opacity="0.38" />
+    <polygon points="1062,620 1070,588 1095,600 1123,590 1129,620" fill="#fbbf24" fill-opacity="0.48" />
+    <polygon points="1137,620 1145,598 1170,595 1198,600 1204,620" fill="#991b1b" fill-opacity="0.28" />
+  </g>
+  <g id="ember-sparks">
+    <circle cx="710.7" cy="298.5" r="1.3" fill="#ffd166" fill-opacity="0.55" />
+    <circle cx="273.7" cy="268.6" r="2.1" fill="#ff7b00" fill-opacity="0.58" />
+    <circle cx="980.7" cy="239.5" r="3.0" fill="#ff3b00" fill-opacity="0.60" />
+    <circle cx="543.8" cy="210.9" r="3.8" fill="#fbbf24" fill-opacity="0.62" />
+    <circle cx="106.8" cy="183.0" r="1.3" fill="#ffd166" fill-opacity="0.64" />
+    <circle cx="813.8" cy="155.6" r="2.1" fill="#ff7b00" fill-opacity="0.66" />
+    <circle cx="376.9" cy="128.6" r="3.0" fill="#ff3b00" fill-opacity="0.68" />
+    <circle cx="1083.9" cy="560.1" r="3.8" fill="#fbbf24" fill-opacity="0.61" />
+    <circle cx="646.9" cy="513.1" r="1.3" fill="#ffd166" fill-opacity="0.65" />
+    <circle cx="210.0" cy="472.6" r="2.1" fill="#ff7b00" fill-opacity="0.68" />
+    <circle cx="917.0" cy="435.5" r="3.0" fill="#ff3b00" fill-opacity="0.45" />
+    <circle cx="480.0" cy="400.6" r="3.8" fill="#fbbf24" fill-opacity="0.48" />
+    <circle cx="43.1" cy="367.3" r="1.3" fill="#ffd166" fill-opacity="0.50" />
+    <circle cx="750.1" cy="335.3" r="2.1" fill="#ff7b00" fill-opacity="0.53" />
+    <circle cx="313.1" cy="304.3" r="3.0" fill="#ff3b00" fill-opacity="0.55" />
+    <circle cx="1020.1" cy="274.3" r="3.8" fill="#fbbf24" fill-opacity="0.57" />
+    <circle cx="583.2" cy="245.0" r="1.3" fill="#ffd166" fill-opacity="0.59" />
+    <circle cx="146.2" cy="216.3" r="2.1" fill="#ff7b00" fill-opacity="0.61" />
+    <circle cx="853.2" cy="188.3" r="3.0" fill="#ff3b00" fill-opacity="0.63" />
+    <circle cx="416.3" cy="160.8" r="3.8" fill="#fbbf24" fill-opacity="0.65" />
+    <circle cx="1123.3" cy="133.7" r="1.3" fill="#ffd166" fill-opacity="0.67" />
+    <circle cx="686.3" cy="570.6" r="2.1" fill="#ff7b00" fill-opacity="0.61" />
+    <circle cx="249.4" cy="521.4" r="3.0" fill="#ff3b00" fill-opacity="0.64" />
+    <circle cx="956.4" cy="480.1" r="3.8" fill="#fbbf24" fill-opacity="0.67" />
+    <circle cx="519.4" cy="442.4" r="1.3" fill="#ffd166" fill-opacity="0.45" />
+    <circle cx="82.5" cy="407.1" r="2.1" fill="#ff7b00" fill-opacity="0.47" />
+    <circle cx="789.5" cy="373.5" r="3.0" fill="#ff3b00" fill-opacity="0.50" />
+    <circle cx="352.5" cy="341.3" r="3.8" fill="#fbbf24" fill-opacity="0.52" />
+    <circle cx="1059.5" cy="310.2" r="1.3" fill="#ffd166" fill-opacity="0.54" />
+    <circle cx="622.6" cy="280.0" r="2.1" fill="#ff7b00" fill-opacity="0.57" />
+  </g>
+  <polygon points="44.0,22.0 1156.0,22.0 1178.0,44.0 1178.0,576.0 1156.0,598.0 44.0,598.0 22.0,576.0 22.0,44.0" fill="url(#slab-grad)" stroke="#d97706" stroke-width="2" stroke-opacity="0.82" />
+  <g id="khazad-brackets">
+    <path d="M 22,62 L 22,38.8 L 38.8,22 L 62,22" fill="none" stroke="#fbbf24" stroke-width="3.0" stroke-linecap="square" />
+    <path d="M 28,58 L 28,41.8 L 41.8,28 L 58,28" fill="none" stroke="#f97316" stroke-width="1.4" stroke-linecap="square" />
+    <path d="M 1138,22 L 1161.2,22 L 1178,38.8 L 1178,62" fill="none" stroke="#fbbf24" stroke-width="3.0" stroke-linecap="square" />
+    <path d="M 1142,28 L 1158.2,28 L 1172,41.8 L 1172,58" fill="none" stroke="#f97316" stroke-width="1.4" stroke-linecap="square" />
+    <path d="M 22,558 L 22,581.2 L 38.8,598 L 62,598" fill="none" stroke="#fbbf24" stroke-width="3.0" stroke-linecap="square" />
+    <path d="M 28,562 L 28,578.2 L 41.8,592 L 58,592" fill="none" stroke="#f97316" stroke-width="1.4" stroke-linecap="square" />
+    <path d="M 1138,598 L 1161.2,598 L 1178,581.2 L 1178,558" fill="none" stroke="#fbbf24" stroke-width="3.0" stroke-linecap="square" />
+    <path d="M 1142,592 L 1158.2,592 L 1172,578.2 L 1172,562" fill="none" stroke="#f97316" stroke-width="1.4" stroke-linecap="square" />
+  </g>
+  <path d="M 52 64 L 68 60 L 96 60 L 92 68 L 84 72 L 88 80 L 64 80 L 68 72 Z" fill="#fbbf24" />
+  <text x="110" y="66" fill="#f8fafc" font-family="Georgia, 'Palatino Linotype', 'Times New Roman', serif" font-size="22.5" font-weight="700" letter-spacing="0.4">MCP Server Forge — Smelt -&gt; Mold -&gt; Hammer -&gt; Temper -&gt; Seal</text>
+  <text x="110" y="96" fill="#cbd5e1" font-family="ui-monospace, 'Cascadia Code', 'Fira Code', Menlo, Consolas, monospace" font-size="12.8">5-Stage Khazad-dûm Pipeline &amp; Stateless FastMCP 4.x Runtime (MCP 2026-07-28)</text>
+  <polygon points="944.0,40.0 1142.0,40.0 1150.0,48.0 1150.0,70.0 1142.0,78.0 944.0,78.0 936.0,70.0 936.0,48.0" fill="#072118" stroke="#10b981" stroke-width="1.8" />
+  <text x="1043" y="64" fill="#10b981" font-family="ui-monospace, 'Cascadia Code', 'Fira Code', Menlo, Consolas, monospace" font-size="12.5" font-weight="700" text-anchor="middle">5 STAGES PASS</text>
+  <line x1="52" y1="120" x2="1148" y2="120" stroke="url(#molten-channel)" stroke-width="2.0" stroke-opacity="0.75" />
+  <polygon points="600,114 607,120 600,126 593,120" fill="#ffd166" />
+  <line x1="258" y1="236" x2="274" y2="236" stroke="url(#molten-channel)" stroke-width="5" />
+  <polygon points="272,229 280,236 272,243" fill="#fef08a" />
+  <line x1="480" y1="236" x2="496" y2="236" stroke="url(#molten-channel)" stroke-width="5" />
+  <polygon points="494,229 502,236 494,243" fill="#fef08a" />
+  <line x1="702" y1="236" x2="718" y2="236" stroke="url(#molten-channel)" stroke-width="5" />
+  <polygon points="716,229 724,236 716,243" fill="#fef08a" />
+  <line x1="924" y1="236" x2="940" y2="236" stroke="url(#molten-channel)" stroke-width="5" />
+  <polygon points="938,229 946,236 938,243" fill="#fef08a" />
+  <polygon points="64.0,146.0 246.0,146.0 258.0,158.0 258.0,316.0 246.0,328.0 64.0,328.0 52.0,316.0 52.0,158.0" fill="#160a06" stroke="#f97316" stroke-width="2.0" />
+  <polygon points="70,168 76,162 82,168 76,174" fill="#f97316" />
+  <text x="88" y="173" fill="#f97316" font-family="ui-monospace, 'Cascadia Code', 'Fira Code', Menlo, Consolas, monospace" font-size="12.5" font-weight="700">1 · SMELT</text>
+  <text x="68" y="208" fill="#f8fafc" font-family="Georgia, 'Palatino Linotype', 'Times New Roman', serif" font-size="18" font-weight="700">OpenAPI Ingest</text>
+  <text x="68" y="242" fill="#ffd166" font-family="ui-monospace, 'Cascadia Code', 'Fira Code', Menlo, Consolas, monospace" font-size="10.8">forge/ingest_openapi.py</text>
+  <line x1="68" y1="262" x2="242" y2="262" stroke="#78350f" stroke-width="1.2" />
+  <text x="68" y="290" fill="#e2e8f0" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="13">$ref inline · &lt;=15 tools</text>
+  <text x="68" y="314" fill="#10b981" font-family="ui-monospace, 'Cascadia Code', 'Fira Code', Menlo, Consolas, monospace" font-size="11" font-weight="700">PASS · FORGED</text>
+  <polygon points="286.0,146.0 468.0,146.0 480.0,158.0 480.0,316.0 468.0,328.0 286.0,328.0 274.0,316.0 274.0,158.0" fill="#160a06" stroke="#fbbf24" stroke-width="2.0" />
+  <polygon points="292,168 298,162 304,168 298,174" fill="#fbbf24" />
+  <text x="310" y="173" fill="#fbbf24" font-family="ui-monospace, 'Cascadia Code', 'Fira Code', Menlo, Consolas, monospace" font-size="12.5" font-weight="700">2 · MOLD</text>
+  <text x="290" y="208" fill="#f8fafc" font-family="Georgia, 'Palatino Linotype', 'Times New Roman', serif" font-size="18" font-weight="700">Template Lock</text>
+  <text x="290" y="242" fill="#ffd166" font-family="ui-monospace, 'Cascadia Code', 'Fira Code', Menlo, Consolas, monospace" font-size="10.8">golden-template/</text>
+  <line x1="290" y1="262" x2="464" y2="262" stroke="#78350f" stroke-width="1.2" />
+  <text x="290" y="290" fill="#e2e8f0" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="13">:ro core · :rw src/tools</text>
+  <text x="290" y="314" fill="#10b981" font-family="ui-monospace, 'Cascadia Code', 'Fira Code', Menlo, Consolas, monospace" font-size="11" font-weight="700">PASS · FORGED</text>
+  <polygon points="508.0,146.0 690.0,146.0 702.0,158.0 702.0,316.0 690.0,328.0 508.0,328.0 496.0,316.0 496.0,158.0" fill="#160a06" stroke="#ff7b00" stroke-width="2.0" />
+  <polygon points="514,168 520,162 526,168 520,174" fill="#ff7b00" />
+  <text x="532" y="173" fill="#ff7b00" font-family="ui-monospace, 'Cascadia Code', 'Fira Code', Menlo, Consolas, monospace" font-size="12.5" font-weight="700">3 · HAMMER</text>
+  <text x="512" y="208" fill="#f8fafc" font-family="Georgia, 'Palatino Linotype', 'Times New Roman', serif" font-size="18" font-weight="700">Tool Synthesis</text>
+  <text x="512" y="242" fill="#ffd166" font-family="ui-monospace, 'Cascadia Code', 'Fira Code', Menlo, Consolas, monospace" font-size="10.8">forge/codegen.py</text>
+  <line x1="512" y1="262" x2="686" y2="262" stroke="#78350f" stroke-width="1.2" />
+  <text x="512" y="290" fill="#e2e8f0" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="13">Pydantic 2020-12 + respx</text>
+  <text x="512" y="314" fill="#10b981" font-family="ui-monospace, 'Cascadia Code', 'Fira Code', Menlo, Consolas, monospace" font-size="11" font-weight="700">PASS · FORGED</text>
+  <polygon points="730.0,146.0 912.0,146.0 924.0,158.0 924.0,316.0 912.0,328.0 730.0,328.0 718.0,316.0 718.0,158.0" fill="#160a06" stroke="#10b981" stroke-width="2.0" />
+  <polygon points="736,168 742,162 748,168 742,174" fill="#10b981" />
+  <text x="754" y="173" fill="#10b981" font-family="ui-monospace, 'Cascadia Code', 'Fira Code', Menlo, Consolas, monospace" font-size="12.5" font-weight="700">4 · TEMPER</text>
+  <text x="734" y="208" fill="#f8fafc" font-family="Georgia, 'Palatino Linotype', 'Times New Roman', serif" font-size="18" font-weight="700">5-Gate Harness</text>
+  <text x="734" y="242" fill="#ffd166" font-family="ui-monospace, 'Cascadia Code', 'Fira Code', Menlo, Consolas, monospace" font-size="10.8">scripts/validate_mcp.py</text>
+  <line x1="734" y1="262" x2="908" y2="262" stroke="#78350f" stroke-width="1.2" />
+  <text x="734" y="290" fill="#e2e8f0" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="13">--network=none · &gt;=85%</text>
+  <text x="734" y="314" fill="#10b981" font-family="ui-monospace, 'Cascadia Code', 'Fira Code', Menlo, Consolas, monospace" font-size="11" font-weight="700">PASS · FORGED</text>
+  <polygon points="952.0,146.0 1134.0,146.0 1146.0,158.0 1146.0,316.0 1134.0,328.0 952.0,328.0 940.0,316.0 940.0,158.0" fill="#160a06" stroke="#ffd166" stroke-width="2.0" />
+  <polygon points="958,168 964,162 970,168 964,174" fill="#ffd166" />
+  <text x="976" y="173" fill="#ffd166" font-family="ui-monospace, 'Cascadia Code', 'Fira Code', Menlo, Consolas, monospace" font-size="12.5" font-weight="700">5 · SEAL</text>
+  <text x="956" y="208" fill="#f8fafc" font-family="Georgia, 'Palatino Linotype', 'Times New Roman', serif" font-size="18" font-weight="700">Governance</text>
+  <text x="956" y="242" fill="#ffd166" font-family="ui-monospace, 'Cascadia Code', 'Fira Code', Menlo, Consolas, monospace" font-size="10.8">forge-release-artifacts.json</text>
+  <line x1="956" y1="262" x2="1130" y2="262" stroke="#78350f" stroke-width="1.2" />
+  <text x="956" y="290" fill="#e2e8f0" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="13">mcpServers + AppSec</text>
+  <text x="956" y="314" fill="#10b981" font-family="ui-monospace, 'Cascadia Code', 'Fira Code', Menlo, Consolas, monospace" font-size="11" font-weight="700">PASS · FORGED</text>
+  <polygon points="68.0,356.0 1132.0,356.0 1148.0,372.0 1148.0,552.0 1132.0,568.0 68.0,568.0 52.0,552.0 52.0,372.0" fill="#120805" stroke="#fbbf24" stroke-width="1.8" />
+  <text x="80" y="392" fill="#fbbf24" font-family="ui-monospace, 'Cascadia Code', 'Fira Code', Menlo, Consolas, monospace" font-size="13.5" font-weight="700">STATELESS FASTMCP 4.x GREAT HALL RUNTIME — MCP 2026-07-28 (src/server.py · src/auth.py · src/deps.py)</text>
+  <polygon points="88.0,416.0 398.0,416.0 408.0,426.0 408.0,534.0 398.0,544.0 88.0,544.0 78.0,534.0 78.0,426.0" fill="#1c0d08" stroke="#f97316" stroke-width="1.5" />
+  <text x="96" y="446" fill="#f8fafc" font-family="Georgia, 'Palatino Linotype', 'Times New Roman', serif" font-size="15" font-weight="700">Lifespan Connection Hearth</text>
+  <text x="96" y="476" fill="#ffd166" font-family="ui-monospace, 'Cascadia Code', 'Fira Code', Menlo, Consolas, monospace" font-size="12">Depends(get_http_client) -&gt; ApiClient</text>
+  <text x="96" y="502" fill="#cbd5e1" font-family="ui-monospace, 'Cascadia Code', 'Fira Code', Menlo, Consolas, monospace" font-size="12">No token passthrough · Env-bound Auth</text>
+  <text x="96" y="528" fill="#10b981" font-family="ui-monospace, 'Cascadia Code', 'Fira Code', Menlo, Consolas, monospace" font-size="11.5" font-weight="700">src/auth.py · src/deps.py</text>
+  <polygon points="444.0,416.0 756.0,416.0 766.0,426.0 766.0,534.0 756.0,544.0 444.0,544.0 434.0,534.0 434.0,426.0" fill="#1c0d08" stroke="#10b981" stroke-width="1.5" />
+  <text x="452" y="446" fill="#f8fafc" font-family="Georgia, 'Palatino Linotype', 'Times New Roman', serif" font-size="15" font-weight="700">FileSystemProvider + Tools</text>
+  <text x="452" y="476" fill="#ffd166" font-family="ui-monospace, 'Cascadia Code', 'Fira Code', Menlo, Consolas, monospace" font-size="12">src/tools/*.py (5 tools discovered)</text>
+  <text x="452" y="502" fill="#cbd5e1" font-family="ui-monospace, 'Cascadia Code', 'Fira Code', Menlo, Consolas, monospace" font-size="12">JSON Schema 2020-12 outputSchema</text>
+  <text x="452" y="528" fill="#10b981" font-family="ui-monospace, 'Cascadia Code', 'Fira Code', Menlo, Consolas, monospace" font-size="11.5" font-weight="700">src/server.py · SEP-2575</text>
+  <polygon points="802.0,416.0 1112.0,416.0 1122.0,426.0 1122.0,534.0 1112.0,544.0 802.0,544.0 792.0,534.0 792.0,426.0" fill="#1c0d08" stroke="#fbbf24" stroke-width="1.5" />
+  <text x="810" y="446" fill="#f8fafc" font-family="Georgia, 'Palatino Linotype', 'Times New Roman', serif" font-size="15" font-weight="700">ForgeResponseLimitingMiddleware</text>
+  <text x="810" y="476" fill="#ffd166" font-family="ui-monospace, 'Cascadia Code', 'Fira Code', Menlo, Consolas, monospace" font-size="12">max_response_bytes = 32,768</text>
+  <text x="810" y="502" fill="#cbd5e1" font-family="ui-monospace, 'Cascadia Code', 'Fira Code', Menlo, Consolas, monospace" font-size="12">Preserves outputSchema + bounds JSON</text>
+  <text x="810" y="528" fill="#10b981" font-family="ui-monospace, 'Cascadia Code', 'Fira Code', Menlo, Consolas, monospace" font-size="11.5" font-weight="700">Bounded Context Guard</text>
+</svg>
