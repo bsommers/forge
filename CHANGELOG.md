@@ -4,7 +4,7 @@ All notable changes to **MCP Server Forge** are documented in this file.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.0] - 2026-11-16
+## [v1.0.0] - 2026-11-17
 
 ### Added
 - **Stage 1 OpenAPI 3.x Normalizer (`forge/ingest_openapi.py`):**
@@ -28,6 +28,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   - Ruff + Bandit (`S`) + print ban (`T20`), `mypy --strict`, AST security & `SEP-2577` deprecation audit, `pytest` contract/unit/pipeline suite (`100.0%` branch coverage on `src/tools/`), and live subprocess `PythonStdioTransport` `server/discover` (`2026-07-28`) verification.
 - **Khazad-dûm Forge Visual Kit, Live Build Dashboard & Documentation Suite:**
   - Deterministic Khazad-dûm Dwarven Forge SVG + PNG generator (`scripts/render-graphics.py`), illustrated forge artworks (`docs/assets/`), GitHub Pages interactive showcase (`docs/index.html`), live build telemetry dashboard (`dashboard/index.html`), and 5-chapter User Guide (`docs/user-guide/`).
+
+### Security
+- Enforced MCP `2026-07-28` Token Passthrough Prohibition via server-bound `httpx.Auth` environment variable resolution (`src/auth.py`).
+- Blocked external `$ref` SSRF vectors and bounded local `$ref` recursion depth (`<= 25`) in `forge/ingest_openapi.py`.
+- Enforced static AST bans on unsafe imports (`os`, `sys`, `subprocess`, `socket`, `shutil`, `pathlib`, `ctypes`, `pickle`, `importlib`), builtins (`eval`, `exec`, `compile`, `open`, `__import__`, `print`), `SEP-2577` deprecated methods, and prompt-injection docstrings in `scripts/validate_mcp.py`.
+- Added Stage 5 `requires_appsec_destructive_signoff` governance metadata for mutating/destructive tools (`forge-release-artifacts.json`).
 
 ### Verified
 - `.venv/bin/python scripts/validate_mcp.py` -> **PASS** (all 5 gates: Ruff, `mypy --strict`, AST/SEP-2577 audit, Pytest `>=85%` branch coverage gate with `100.0%` achieved on `src/tools/`, and subprocess `stdio` `server/discover` on MCP `2026-07-28`).
