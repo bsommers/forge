@@ -22,6 +22,9 @@ docs/
 ├── PURPOSE.md                        # Problem statement, threat model, goals & trade-offs
 ├── ARCHITECTURE.md                   # 5-stage pipeline, runtime internals, Mermaid & ASCII models
 ├── HOWTO.md                          # Task-oriented operational recipes & debugging guide
+├── ROADMAP.md                        # Milestone roadmap (M1-M3) & gap matrix
+├── plans/                            # Contract-first implementation plans
+│   └── 01-high-signal-codegen-and-agent-refinement.md
 ├── brochure.md                       # Executive stakeholder showcase with Khazad-dûm visuals
 ├── assets/                           # Khazad-dûm Dwarven Forge SVG + PNG graphics & illustrations
 │   ├── logo.{svg,png}                # 1200x380 Forge hero banner

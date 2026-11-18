@@ -216,6 +216,7 @@ docker run -i --rm \
 | **[Purpose & Threat Model](docs/PURPOSE.md)** | Problem statement, security boundaries, goals, non-goals & trade-offs |
 | **[How-To Guide](docs/HOWTO.md)** | Copy-pasteable recipes for setup, `--tag-filter`, auth modes, custom tools & debugging |
 | **[Product Brochure](docs/brochure.md)** | Executive showcase with Khazad-dûm visuals, personas & value pillars |
+| **[Milestone Roadmap](docs/ROADMAP.md)** | Planned milestones (`M1`–`M3`) & [Plan 01: High-Signal `--local` Projection & Host-Agent Mode](docs/plans/01-high-signal-codegen-and-agent-refinement.md) |
 | **[Agent Context (`AGENTS.md`)](AGENTS.md)** | Cold-start briefing, invariants & pitfalls for AI coding agents |
 | **[Changelog](CHANGELOG.md)** | Release history and verification records |
 

@@ -278,8 +278,11 @@ graph TD
 
 ---
 
-## Known Limitations
+## Known Limitations & Milestone Plan
 
-- **First Security Scheme Selection**: `_extract_auth_config` in `forge/ingest_openapi.py` selects the first declared entry in `components.securitySchemes`; specs mixing per-operation auth overrides require manual manifest adjustment.
+Each current trade-off is tracked with measurable exit criteria in [`docs/ROADMAP.md`](ROADMAP.md):
+
+- **`--local` Deterministic Codegen (`forge/codegen.py`) vs. Curated Tools (`src/tools/`)** *(Tracked in **Milestone M1 & M2** — [Plan 01](plans/01-high-signal-codegen-and-agent-refinement.md))*: `--local` mode currently uses a generic `{id, title, status, severity, data: dict[str, Any]}` response wrapper for instant scaffolding and CI smoke testing, whereas trimming a 100-field upstream payload down to the 6–8 high-signal fields an LLM actually needs currently relies on the Stage 3 coding agent container or a human/agent pass over `src/tools/*.py`. **M1 (`v1.1.0`)** adds deterministic OpenAPI `2xx` response schema ranking (`--max-output-fields 8` + `x-mcp-fields`), and **M2 (`v1.2.0`)** adds Docker-free `--execution-mode agent` (`--agent-cmd`) with SHA-256 lock verification.
+- **First Security Scheme Selection** *(Tracked in **Milestone M3**)*: `_extract_auth_config` in `forge/ingest_openapi.py` selects the first declared entry in `components.securitySchemes`; specs mixing per-operation auth overrides require manual manifest adjustment until `v1.3.0`.
 - **`application/json` Request Bodies**: Stage 1 extracts request body schemas from `application/json` media types; `multipart/form-data` binary uploads are intentionally out of scope for text/JSON MCP tools.
-- **15-Tool Context Cap**: Large monolithic OpenAPI specs must be partitioned into multiple domain-scoped MCP servers using `--tag-filter`.
+- **15-Tool Context Cap** *(Auto-sharding tracked in **Milestone M3**)*: Large monolithic OpenAPI specs must be partitioned into multiple domain-scoped MCP servers using `--tag-filter` (automated via `--auto-split-tags` in `v1.3.0`).
