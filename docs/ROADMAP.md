@@ -12,8 +12,8 @@ This roadmap tracks how **MCP Server Forge** evolves from its `v1.0.0` baseline 
 
 ```mermaid
 flowchart LR
-    M0["M0: v1.0.0 Baseline (done)\n5-Stage Pipeline + 5 Gates"] --> M1["M1: v1.1.0 (open)\nHigh-Signal --local Projection"]
-    M1 --> M2["M2: v1.2.0 (open)\nHost-Agent Polish + SHA-256 Lock"]
+    M0["M0: v1.0.0 Baseline (done)\n5-Stage Pipeline + 5 Gates"] --> M1["M1: v1.1.0 (done)\nHigh-Signal --local Projection"]
+    M1 --> M2["M2: v1.2.0 (done)\nHost-Agent Polish + SHA-256 Lock"]
     M2 --> M3["M3: v1.3.0 (open)\nPer-Op Auth + Auto-Split Suites"]
 ```
 
@@ -24,8 +24,8 @@ flowchart LR
 | Milestone | Target | Status | Focus | Exit Gate Command |
 |-----------|--------|:------:|-------|-------------------|
 | **M0** | `v1.0.0` | `done` | Core Stage 1–5 pipeline, FastMCP 4.x Golden Template, 5-gate validator, `acme-incidents` server (`100%` branch cov), Khazad-dûm docs & Pages | `.venv/bin/python scripts/validate_mcp.py` |
-| **M1** | `v1.1.0` | `open` | **High-Signal Response Schema Projection in `--local` Mode** — Trim 100-field OpenAPI responses down to top-`N` typed fields (`--max-output-fields`) & list/cursor envelopes without raw `data: dict[str, Any]` dumps | `.venv/bin/python -m pytest tests/forge/test_schema_projection.py -q && .venv/bin/python scripts/validate_mcp.py` |
-| **M2** | `v1.2.0` | `open` | **Docker-Free Host-Agent Semantic Refinement (`--execution-mode agent`)** — Pair deterministic `--local` scaffolding with a host CLI coding agent (`--agent-cmd`) guarded by `0444` locks + SHA-256 tamper checks | `.venv/bin/python -m pytest tests/forge/test_host_agent_mode.py -q && .venv/bin/python scripts/validate_mcp.py` |
+| **M1** | `v1.1.0` | `done` | **High-Signal Response Schema Projection in `--local` Mode** — Trim 100-field OpenAPI responses down to top-`N` typed fields (`--max-output-fields`) & list/cursor envelopes without raw `data: dict[str, Any]` dumps | `.venv/bin/python -m pytest tests/forge/test_schema_projection.py -q && .venv/bin/python scripts/validate_mcp.py` |
+| **M2** | `v1.2.0` | `done` | **Docker-Free Host-Agent Semantic Refinement (`--execution-mode agent`)** — Pair deterministic `--local` scaffolding with a host CLI coding agent (`--agent-cmd`) guarded by `0444` locks + SHA-256 tamper checks | `.venv/bin/python -m pytest tests/forge/test_host_agent_mode.py -q && .venv/bin/python scripts/validate_mcp.py` |
 | **M3** | `v1.3.0` | `open` | **Per-Operation Auth Overrides & Multi-Tag Suite Sharding (`--auto-split-tags`)** — Support operation-level OpenAPI `security` schemes and auto-partition `> 15`-tool specs into multi-server workspaces | `.venv/bin/python -m pytest tests/forge/test_multi_shard.py -q && .venv/bin/python scripts/validate_mcp.py` |
 
 ---

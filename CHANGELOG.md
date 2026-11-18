@@ -4,6 +4,18 @@ All notable changes to **MCP Server Forge** are documented in this file.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.2.0] - 2026-11-18
+
+### Added
+- **Milestone M1 — High-Signal `2xx` Response Schema Projection (`forge/ingest_openapi.py`, `forge/projection.py`, `forge/codegen.py`):**
+  - Preserves resolved OpenAPI `200`/`201`/`202` `application/json` `response_schema` definitions, `x-mcp-fields` dotted-path allowlists, and `--max-output-fields` (`1..20`, default `8`) in `forge-manifest.json`.
+  - Ranks and trims bloated 100-field upstream payloads down to top-`N` high-signal scalar/flattened fields (`commander.name -> commander`) and synthesizes typed `<Tool>Item` + `<Tool>Response` (`items`, `next_cursor`, `total_returned`) envelopes for paginated collections—eliminating raw `data: dict[str, Any]` passthrough in `--local` mode.
+- **Milestone M2 — Docker-Free Host-Agent Mode & SHA-256 Lock Guard (`forge/orchestrator.py`):**
+  - Adds `--execution-mode agent` and `--agent-cmd` (`{prompt_file}`, `{workspace}`) seeded from M1 projected tools and verified across up to 3 `scripts/validate_mcp.py` self-healing iterations without requiring Docker.
+  - Enforces `0444` read-only permissions and pre/post SHA-256 digest checks (`snapshot_locked_digests`, `enforce_and_verify_locked_digests`, `TamperDetectionError`) with automatic baseline restoration if any locked Golden Template file is touched.
+- **Milestone Roadmap & Plan 01 (`docs/ROADMAP.md`, `docs/plans/01-high-signal-codegen-and-agent-refinement.md`):**
+  - Added `M0`–`M3` roadmap, gap matrix, and exhaustive test suites `tests/forge/test_schema_projection.py` and `tests/forge/test_host_agent_mode.py`.
+
 ## [v1.0.0] - 2026-11-17
 
 ### Added

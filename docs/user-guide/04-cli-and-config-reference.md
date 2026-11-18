@@ -24,6 +24,7 @@ Stage 1 OpenAPI 3.x YAML/JSON normalizer.
 | `--spec` | `Path` | Yes | — | Path to OpenAPI 3.x `.yaml`, `.yml`, or `.json` specification |
 | `--name` | `str` | Yes | — | Kebab-case MCP server identifier (e.g., `acme-incidents`) |
 | `--tag-filter` | `str` | No | `None` | Include only operations tagged with `<tag>` |
+| `--max-output-fields` | `int` | No | `8` | Maximum high-signal fields projected per tool `outputSchema` (`1..20`) |
 | `--output` | `Path` | No | `stdout` | Destination file path for `forge-manifest.json` |
 
 ---
@@ -40,7 +41,9 @@ Stages 1–5 end-to-end self-healing orchestrator.
 | `--tag-filter` | `str` | No | `None` | Optional OpenAPI tag slice (`<= 15` tools) |
 | `--template-dir` | `Path` | No | `./golden-template` | Source Golden Template directory |
 | `--prompt-file` | `Path` | No | `./forge/AGENT_SYSTEM_PROMPT.md` | System prompt injected into Stage 3 coding agent |
-| `--execution-mode` | `docker\|local` | No | `docker` | `docker` (hardened containers) or `local` (`forge/codegen.py`) |
+| `--max-output-fields` | `int` | No | `8` | Maximum high-signal fields projected per tool `outputSchema` (`1..20`) |
+| `--execution-mode` | `docker\|local\|agent` | No | `docker` | `docker` (containers), `local` (deterministic projection), or `agent` (host CLI + SHA-256 lock guard) |
+| `--agent-cmd` | `str` | No | `""` | Host CLI command template for `--execution-mode agent` (`{prompt_file}`, `{workspace}`) |
 | `--local` | `bool` | No | `False` | Shorthand alias for `--execution-mode local` |
 | `--agent-image` | `str` | No | `mcp-forge-agent:latest` | Docker image for Stage 3 coding agent |
 | `--validator-image` | `str` | No | `mcp-forge-validator:latest` | Docker image for `--network=none` Stage 4 validation |

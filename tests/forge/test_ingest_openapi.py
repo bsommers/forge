@@ -290,3 +290,73 @@ def test_duplicate_operation_ids_and_cli_main(
     main(["--spec", str(spec_path), "--name", "dup-srv"])
     captured = capsys.readouterr()
     assert '"server_name": "dup-srv"' in captured.out
+
+
+def test_response_schema_x_mcp_fields_and_max_output_fields(tmp_path: Path) -> None:
+    manifest = normalize_openapi_to_manifest(ACME_YAML_SPEC, "acme-incidents", max_output_fields=6)
+    tools_by_name = {t["name"]: t for t in manifest["tools"]}
+
+    get_inc = tools_by_name["get_incident"]
+    assert get_inc["max_output_fields"] == 6
+    assert get_inc["response_schema"] is not None
+    assert "commander" in get_inc["response_schema"]["properties"]
+    # Internal $ref CommanderInfo must already be inlined
+    assert "name" in get_inc["response_schema"]["properties"]["commander"]["properties"]
+
+    list_inc = tools_by_name["list_incidents"]
+    assert list_inc["response_schema"] is not None
+    assert "incidents" in list_inc["response_schema"]["properties"]
+
+    del_inc = tools_by_name["delete_incident"]
+    assert del_inc["response_schema"] is None
+
+    with pytest.raises(SpecNormalizationError, match="max_output_fields"):
+        normalize_openapi_to_manifest(ACME_YAML_SPEC, "acme-incidents", max_output_fields=0)
+    with pytest.raises(SpecNormalizationError, match="max_output_fields"):
+        normalize_openapi_to_manifest(ACME_YAML_SPEC, "acme-incidents", max_output_fields=25)
+
+    custom_spec: dict[str, Any] = {
+        "openapi": "3.1.0",
+        "info": {"title": "Custom Fields"},
+        "paths": {
+            "/users/{user_id}": {
+                "get": {
+                    "operationId": "get_user",
+                    "summary": "Fetch user record",
+                    "x-mcp-fields": ["id", "commander.name", "id"],
+                    "responses": {
+                        "202": {
+                            "description": "Accepted summary",
+                            "content": {
+                                "application/json": {
+                                    "schema": {
+                                        "type": "object",
+                                        "properties": {"id": {"type": "string"}},
+                                    }
+                                }
+                            },
+                        }
+                    },
+                }
+            }
+        },
+    }
+    spec_file = tmp_path / "custom.json"
+    spec_file.write_text(json.dumps(custom_spec), encoding="utf-8")
+    parsed = normalize_openapi_to_manifest(spec_file, "users-srv")
+    assert parsed["tools"][0]["x_mcp_fields"] == ["id", "commander.name"]
+    assert parsed["tools"][0]["response_schema"] is not None
+
+    bad_fields_spec = copy_spec = json.loads(json.dumps(custom_spec))
+    copy_spec["paths"]["/users/{user_id}"]["get"]["x-mcp-fields"] = ["bad field!"]
+    bad_file = tmp_path / "bad_fields.json"
+    bad_file.write_text(json.dumps(bad_fields_spec), encoding="utf-8")
+    with pytest.raises(SpecNormalizationError, match="invalid x-mcp-fields"):
+        normalize_openapi_to_manifest(bad_file, "users-srv")
+
+    empty_fields_spec = json.loads(json.dumps(custom_spec))
+    empty_fields_spec["paths"]["/users/{user_id}"]["get"]["x-mcp-fields"] = []
+    empty_file = tmp_path / "empty_fields.json"
+    empty_file.write_text(json.dumps(empty_fields_spec), encoding="utf-8")
+    with pytest.raises(SpecNormalizationError, match="non-empty list"):
+        normalize_openapi_to_manifest(empty_file, "users-srv")

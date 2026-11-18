@@ -13,7 +13,11 @@ from typing import Any
 import yaml
 
 MAX_TOOLS_PER_SERVER = 15
+DEFAULT_MAX_OUTPUT_FIELDS = 8
+MIN_MAX_OUTPUT_FIELDS = 1
+MAX_MAX_OUTPUT_FIELDS = 20
 HTTP_METHODS = ("get", "post", "put", "patch", "delete")
+X_MCP_FIELD_PATH_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$")
 
 
 class SpecNormalizationError(ValueError):
@@ -121,12 +125,62 @@ def _infer_annotations(method: str) -> dict[str, bool]:
     }
 
 
+def _extract_response_schema(op: dict[str, Any]) -> dict[str, Any] | None:
+    """Extract the primary 2xx application/json response schema (if declared)."""
+    responses = op.get("responses")
+    if not isinstance(responses, dict):
+        return None
+
+    str_keyed = {str(k): v for k, v in responses.items()}
+    ordered_codes = ["200", "201", "202"] + sorted(
+        code for code in str_keyed if code.startswith("2") and code not in {"200", "201", "202"}
+    )
+    for code in ordered_codes:
+        resp_obj = str_keyed.get(code)
+        if not isinstance(resp_obj, dict):
+            continue
+        content = resp_obj.get("content")
+        if not isinstance(content, dict):
+            continue
+        json_media = content.get("application/json")
+        if isinstance(json_media, dict) and isinstance(json_media.get("schema"), dict):
+            return dict(json_media["schema"])
+    return None
+
+
+def _extract_x_mcp_fields(op: dict[str, Any], tool_name: str) -> list[str] | None:
+    """Validate optional x-mcp-fields dotted-path allowlist on an operation."""
+    if "x-mcp-fields" not in op:
+        return None
+    raw = op["x-mcp-fields"]
+    if not isinstance(raw, list) or not raw:
+        raise SpecNormalizationError(
+            f"Operation '{tool_name}': x-mcp-fields must be a non-empty list of field paths."
+        )
+    cleaned: list[str] = []
+    for item in raw:
+        if not isinstance(item, str) or not X_MCP_FIELD_PATH_RE.match(item.strip()):
+            raise SpecNormalizationError(
+                f"Operation '{tool_name}': invalid x-mcp-fields entry {item!r}."
+            )
+        field_path = item.strip()
+        if field_path not in cleaned:
+            cleaned.append(field_path)
+    return cleaned
+
+
 def normalize_openapi_to_manifest(
     spec_path: Path,
     server_name: str,
     tag_filter: str | None = None,
+    max_output_fields: int = DEFAULT_MAX_OUTPUT_FIELDS,
 ) -> dict[str, Any]:
     """Parse an OpenAPI 3.x file into a deterministic forge-manifest.json dictionary."""
+    if not (MIN_MAX_OUTPUT_FIELDS <= max_output_fields <= MAX_MAX_OUTPUT_FIELDS):
+        raise SpecNormalizationError(
+            f"max_output_fields must be between {MIN_MAX_OUTPUT_FIELDS} and "
+            f"{MAX_MAX_OUTPUT_FIELDS}, got {max_output_fields}."
+        )
     raw_text = spec_path.read_text(encoding="utf-8")
     loaded_spec: Any = (
         json.loads(raw_text) if spec_path.suffix.lower() == ".json" else yaml.safe_load(raw_text)
@@ -196,25 +250,31 @@ def normalize_openapi_to_manifest(
                 if isinstance(json_media, dict) and "schema" in json_media:
                     req_body_schema = json_media["schema"]
 
+            resp_schema = _extract_response_schema(op)
+            x_mcp_fields = _extract_x_mcp_fields(op, tool_name)
+
             summary = str(
                 op.get("summary") or op.get("description") or f"{method.upper()} {path_str}"
             ).strip()
             if len(summary) < 15:
                 summary = f"Execute {method.upper()} request on {path_str} endpoint."
 
-            tools.append(
-                {
-                    "name": tool_name,
-                    "title": str(op.get("summary") or tool_name.replace("_", " ").title())[:80],
-                    "method": method.upper(),
-                    "path": path_str,
-                    "description": summary[:400],
-                    "annotations": _infer_annotations(method),
-                    "required_params": required_params,
-                    "parameters": parameter_specs,
-                    "request_body_schema": req_body_schema,
-                }
-            )
+            tool_entry: dict[str, Any] = {
+                "name": tool_name,
+                "title": str(op.get("summary") or tool_name.replace("_", " ").title())[:80],
+                "method": method.upper(),
+                "path": path_str,
+                "description": summary[:400],
+                "annotations": _infer_annotations(method),
+                "required_params": required_params,
+                "parameters": parameter_specs,
+                "request_body_schema": req_body_schema,
+                "response_schema": resp_schema,
+                "max_output_fields": max_output_fields,
+            }
+            if x_mcp_fields is not None:
+                tool_entry["x_mcp_fields"] = x_mcp_fields
+            tools.append(tool_entry)
 
     if not tools:
         raise SpecNormalizationError("Zero HTTP operations matched in the OpenAPI specification.")
@@ -253,6 +313,12 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--name", type=str, required=True, help="Kebab-case MCP server name")
     parser.add_argument("--tag-filter", type=str, default=None, help="Optional OpenAPI tag slice")
     parser.add_argument(
+        "--max-output-fields",
+        type=int,
+        default=DEFAULT_MAX_OUTPUT_FIELDS,
+        help="Maximum high-signal fields projected per tool outputSchema (1..20, default 8)",
+    )
+    parser.add_argument(
         "--output",
         type=Path,
         default=None,
@@ -264,6 +330,7 @@ def main(argv: list[str] | None = None) -> None:
         spec_path=args.spec,
         server_name=args.name,
         tag_filter=args.tag_filter,
+        max_output_fields=args.max_output_fields,
     )
     serialized = json.dumps(manifest, indent=2) + "\n"
     if args.output is not None:

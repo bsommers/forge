@@ -1,6 +1,6 @@
 # Plan 01 — High-Signal Schema Projection & Host-Agent Semantic Refinement (M1 & M2)
 
-- **Status:** `open`
+- **Status:** `done`
 - **Target Milestones:** `M1 (v1.1.0)` and `M2 (v1.2.0)` in [`../ROADMAP.md`](../ROADMAP.md)
 - **Recommended First Task:** Task 1 (`forge/ingest_openapi.py` `2xx` response schema & `x-mcp-fields` extraction)
 

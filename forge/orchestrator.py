@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
+import shlex
 import shutil
+import stat
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -13,9 +16,25 @@ from pathlib import Path
 from typing import Any
 
 from forge.codegen import synthesize_workspace_code
-from forge.ingest_openapi import normalize_openapi_to_manifest
+from forge.ingest_openapi import DEFAULT_MAX_OUTPUT_FIELDS, normalize_openapi_to_manifest
 
 MAX_HEAL_ITERATIONS = 3
+
+LOCKED_RELATIVE_PATHS: tuple[str, ...] = (
+    "pyproject.toml",
+    "Dockerfile",
+    "forge-manifest.json",
+    "respx",
+    "src/auth.py",
+    "src/deps.py",
+    "src/server.py",
+    "tests/contract",
+    "scripts/validate_mcp.py",
+)
+
+
+class TamperDetectionError(RuntimeError):
+    """Raised when a host-mode coding agent modifies or deletes a locked Golden Template path."""
 
 
 @dataclass(frozen=True)
@@ -26,6 +45,94 @@ class ValidationOutcome:
     diagnostics: str
 
 
+def _iter_locked_files(workspace_dir: Path) -> list[Path]:
+    found: list[Path] = []
+    for rel in LOCKED_RELATIVE_PATHS:
+        target = workspace_dir / rel
+        if not target.exists():
+            continue
+        if target.is_file():
+            found.append(target)
+        elif target.is_dir():
+            for child in sorted(target.rglob("*")):
+                if (
+                    child.is_file()
+                    and "__pycache__" not in child.parts
+                    and child.suffix != ".pyc"
+                ):
+                    found.append(child)
+    return sorted(set(found))
+
+
+def snapshot_locked_digests(workspace_dir: Path) -> dict[str, str]:
+    """Compute SHA-256 hex digests for all locked Golden Template files in workspace_dir."""
+    digests: dict[str, str] = {}
+    for file_path in _iter_locked_files(workspace_dir):
+        rel = file_path.relative_to(workspace_dir).as_posix()
+        digests[rel] = hashlib.sha256(file_path.read_bytes()).hexdigest()
+    return digests
+
+
+def _snapshot_locked_bytes(workspace_dir: Path) -> dict[str, bytes]:
+    return {
+        p.relative_to(workspace_dir).as_posix(): p.read_bytes()
+        for p in _iter_locked_files(workspace_dir)
+    }
+
+
+def _set_locked_permissions(workspace_dir: Path, *, writable: bool) -> None:
+    for file_path in _iter_locked_files(workspace_dir):
+        current_mode = stat.S_IMODE(file_path.stat().st_mode)
+        if writable:
+            file_path.chmod(current_mode | stat.S_IWUSR)
+        else:
+            file_path.chmod(current_mode & ~(stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH))
+
+
+def enforce_and_verify_locked_digests(
+    workspace_dir: Path,
+    baseline_digests: dict[str, str],
+    baseline_bytes: dict[str, bytes] | None = None,
+) -> None:
+    """Verify no locked Golden Template file was modified, deleted, or injected; restore & abort."""
+    current_digests = snapshot_locked_digests(workspace_dir)
+    tampered: list[str] = []
+
+    for rel, expected_hash in baseline_digests.items():
+        actual_hash = current_digests.get(rel)
+        if actual_hash != expected_hash:
+            tampered.append(rel)
+
+    for rel in current_digests:
+        if rel not in baseline_digests:
+            tampered.append(rel)
+
+    if tampered:
+        if baseline_bytes is not None:
+            for rel in tampered:
+                target = workspace_dir / rel
+                if rel in baseline_bytes:
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    if target.exists():
+                        target.chmod(stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH)
+                    target.write_bytes(baseline_bytes[rel])
+                elif target.exists():
+                    target.unlink()
+        joined = ", ".join(sorted(set(tampered)))
+        raise TamperDetectionError(
+            f"Locked Golden Template path(s) modified during host-agent execution: {joined}"
+        )
+
+
+def _unlock_tree_for_rmtree(root: Path) -> None:
+    for p in root.rglob("*"):
+        if not p.is_symlink():
+            try:
+                p.chmod(stat.S_IMODE(p.stat().st_mode) | stat.S_IWUSR)
+            except OSError:
+                pass
+
+
 def stage_workspace(
     golden_template_dir: Path,
     workspace_dir: Path,
@@ -33,6 +140,7 @@ def stage_workspace(
 ) -> None:
     """Stage 2: Clone Golden Template, write forge-manifest.json, and clear stub tools."""
     if workspace_dir.exists():
+        _unlock_tree_for_rmtree(workspace_dir)
         shutil.rmtree(workspace_dir)
 
     source_dir = golden_template_dir
@@ -58,6 +166,9 @@ def stage_workspace(
                 "golden-template",
                 "test_ingest_openapi.py",
                 "test_orchestrator.py",
+                "test_docs_alignment.py",
+                "test_schema_projection.py",
+                "test_host_agent_mode.py",
             ),
         )
         (workspace_dir / ".venv").symlink_to((source_dir / ".venv").resolve())
@@ -67,7 +178,6 @@ def stage_workspace(
         if parent_venv.exists() and not (workspace_dir / ".venv").exists():
             (workspace_dir / ".venv").symlink_to(parent_venv)
 
-    # Clear reference example tools so the agent builds strictly from forge-manifest.json
     tools_dir = workspace_dir / "src" / "tools"
     tools_dir.mkdir(parents=True, exist_ok=True)
     for py_file in tools_dir.glob("*.py"):
@@ -144,10 +254,8 @@ def invoke_sandboxed_agent(
         llm_api_key_env,
         "-w",
         "/workspace",
-        # Mount full repository READ-ONLY first so locked files cannot be tampered with
         "-v",
         f"{workspace_dir.resolve()}:/workspace:ro",
-        # Overlay ONLY permitted agent-writable paths as READ-WRITE
         "-v",
         f"{(workspace_dir / 'src' / 'tools').resolve()}:/workspace/src/tools:rw",
         "-v",
@@ -166,6 +274,62 @@ def invoke_sandboxed_agent(
     if proc.returncode != 0:
         raise RuntimeError(
             f"Coding agent container exited with code {proc.returncode}:\n{proc.stderr}"
+        )
+
+
+def invoke_host_agent(
+    workspace_dir: Path,
+    agent_cmd: str,
+    prompt_text: str,
+    timeout_sec: float = 300.0,
+) -> None:
+    """
+    Stage 3 (Docker-free `agent` mode): Run a host CLI coding agent against workspace_dir
+    while enforcing 0444 read-only permissions and pre/post SHA-256 lock verification.
+    """
+    if not agent_cmd.strip():
+        raise ValueError("Host-agent mode requires a non-empty --agent-cmd command string.")
+
+    baseline_digests = snapshot_locked_digests(workspace_dir)
+    baseline_bytes = _snapshot_locked_bytes(workspace_dir)
+
+    prompt_file = (workspace_dir / ".forge-agent-prompt.md").resolve()
+    prompt_file.write_text(prompt_text, encoding="utf-8")
+
+    raw_tokens = shlex.split(agent_cmd)
+    uses_prompt_placeholder = any("{prompt_file}" in tok for tok in raw_tokens)
+    resolved_cmd = [
+        tok.replace("{prompt_file}", str(prompt_file)).replace(
+            "{workspace}", str(workspace_dir.resolve())
+        )
+        for tok in raw_tokens
+    ]
+
+    env = dict(os.environ)
+    env["FORGE_PROMPT_FILE"] = str(prompt_file)
+    env["FORGE_WORKSPACE_DIR"] = str(workspace_dir.resolve())
+
+    _set_locked_permissions(workspace_dir, writable=False)
+    try:
+        proc = subprocess.run(  # noqa: S603
+            resolved_cmd,
+            cwd=workspace_dir,
+            env=env,
+            input=None if uses_prompt_placeholder else prompt_text,
+            text=True,
+            capture_output=True,
+            timeout=timeout_sec,
+            check=False,
+        )
+    finally:
+        _set_locked_permissions(workspace_dir, writable=True)
+        prompt_file.unlink(missing_ok=True)
+
+    enforce_and_verify_locked_digests(workspace_dir, baseline_digests, baseline_bytes)
+
+    if proc.returncode != 0:
+        raise RuntimeError(
+            f"Host coding agent exited with code {proc.returncode}:\n{proc.stderr}"
         )
 
 
@@ -304,43 +468,54 @@ def run_forge_pipeline(
     registry_prefix: str = "ghcr.io/org",
     tag_filter: str | None = None,
     execution_mode: str = "docker",
+    agent_cmd: str = "",
+    max_output_fields: int = DEFAULT_MAX_OUTPUT_FIELDS,
 ) -> dict[str, Any]:
     """Run all 5 stages of the MCP Server Forge pipeline."""
-    print(f"[Stage 1] Normalizing {spec_path} -> forge-manifest.json ...", file=sys.stderr)  # noqa: T201
-    manifest = normalize_openapi_to_manifest(spec_path, server_name, tag_filter=tag_filter)
+    print(f"[Stage 1] Normalizing {spec_path} -> forge-manifest.json ...", file=sys.stderr)
+    manifest = normalize_openapi_to_manifest(
+        spec_path,
+        server_name,
+        tag_filter=tag_filter,
+        max_output_fields=max_output_fields,
+    )
 
-    print(  # noqa: T201
-        f"[Stage 2] Scaffolding locked FastMCP 4.2 Golden Template in {output_dir} ...",
+    print(
+        f"[Stage 2] Scaffolding locked FastMCP 4.x Golden Template in {output_dir} ...",
         file=sys.stderr,
     )
     stage_workspace(golden_template_dir, output_dir, manifest)
 
     last_diagnostics: str | None = None
     for attempt in range(1, MAX_HEAL_ITERATIONS + 1):
-        print(  # noqa: T201
+        print(
             f"[Stage 3] Running Coding Agent (Iteration {attempt}/{MAX_HEAL_ITERATIONS}) ...",
             file=sys.stderr,
         )
         prompt = build_agent_task_prompt(system_prompt_path, manifest, attempt, last_diagnostics)
         if execution_mode == "local":
             synthesize_workspace_code(output_dir, manifest)
+        elif execution_mode == "agent":
+            if attempt == 1:
+                synthesize_workspace_code(output_dir, manifest)
+            invoke_host_agent(output_dir, agent_cmd=agent_cmd, prompt_text=prompt)
         else:
             invoke_sandboxed_agent(output_dir, agent_image=agent_image, prompt_text=prompt)
 
-        print(  # noqa: T201
+        print(
             f"[Stage 4] Running Offline Verification Harness (Iteration {attempt}) ...",
             file=sys.stderr,
         )
-        if execution_mode == "local":
+        if execution_mode in {"local", "agent"}:
             outcome = run_local_validation(output_dir)
         else:
             outcome = run_isolated_validation(output_dir, validator_image=validator_image)
 
         if outcome.passed:
-            print("[Stage 4] Verification PASSED!", file=sys.stderr)  # noqa: T201
+            print("[Stage 4] Verification PASSED!", file=sys.stderr)
             break
         last_diagnostics = outcome.diagnostics
-        print(  # noqa: T201
+        print(
             f"[Stage 4] Verification FAILED on attempt {attempt}:\n{outcome.diagnostics}",
             file=sys.stderr,
         )
@@ -349,12 +524,12 @@ def run_forge_pipeline(
             f"Forge aborted after {MAX_HEAL_ITERATIONS} failed verification attempts."
         )
 
-    print(  # noqa: T201
+    print(
         "[Stage 5] Emitting deployment snippets & PR governance report ...",
         file=sys.stderr,
     )
     artifacts = emit_stage5_packaging_artifacts(output_dir, manifest, registry_prefix)
-    print(json.dumps(artifacts, indent=2))  # noqa: T201
+    print(json.dumps(artifacts, indent=2))
     return artifacts
 
 
@@ -371,10 +546,22 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--validator-image", type=str, default="mcp-forge-validator:latest")
     parser.add_argument("--registry-prefix", type=str, default="ghcr.io/org")
     parser.add_argument(
+        "--max-output-fields",
+        type=int,
+        default=DEFAULT_MAX_OUTPUT_FIELDS,
+        help="Maximum high-signal fields projected per tool outputSchema (1..20, default 8)",
+    )
+    parser.add_argument(
         "--execution-mode",
-        choices=("docker", "local"),
+        choices=("docker", "local", "agent"),
         default="docker",
-        help="Execution mode: 'docker' (hardened containers) or 'local' (deterministic codegen)",
+        help="Execution mode: 'docker', 'local' (deterministic projection), or 'agent' (host CLI)",
+    )
+    parser.add_argument(
+        "--agent-cmd",
+        type=str,
+        default="",
+        help="Host CLI command for --execution-mode agent ({prompt_file}, {workspace})",
     )
     parser.add_argument(
         "--local",
@@ -395,6 +582,8 @@ def main(argv: list[str] | None = None) -> None:
         registry_prefix=args.registry_prefix,
         tag_filter=args.tag_filter,
         execution_mode=mode,
+        agent_cmd=args.agent_cmd,
+        max_output_fields=args.max_output_fields,
     )
 
 

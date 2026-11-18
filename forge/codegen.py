@@ -7,6 +7,8 @@ import re
 from pathlib import Path
 from typing import Any
 
+from forge.projection import ProjectedField, ResponseProjection, project_response_schema
+
 SENSITIVE_PARAM_RE = re.compile(
     r"(password|passwd|secret|token|api_?key|authorization|credential|ssn)",
     re.IGNORECASE,
@@ -136,6 +138,106 @@ def _python_type_and_default(param: dict[str, Any]) -> tuple[str, str | None, An
     return py_type, default_repr, sample_val
 
 
+def _projection_for_tool(tool_spec: dict[str, Any]) -> ResponseProjection:
+    has_schema_key = "response_schema" in tool_spec or "x_mcp_fields" in tool_spec
+    resp_schema = tool_spec.get("response_schema")
+    x_fields = tool_spec.get("x_mcp_fields")
+    max_fields = int(tool_spec.get("max_output_fields", 8))
+    return project_response_schema(
+        resp_schema if isinstance(resp_schema, dict) else None,
+        method=str(tool_spec.get("method", "GET")),
+        x_mcp_fields=list(x_fields) if isinstance(x_fields, list) else None,
+        max_output_fields=max_fields,
+        has_schema_key=has_schema_key,
+    )
+
+
+def _render_field_decl(pf: ProjectedField) -> list[str]:
+    desc_json = json.dumps(_sanitize_docstring(pf.description)[:64])
+    return [
+        f"    {pf.py_name}: {pf.py_type} = Field(",
+        f"        default={pf.default_repr},",
+        f"        description={desc_json},",
+        "    )",
+    ]
+
+
+def _render_value_expr(pf: ProjectedField, src_var: str) -> str:
+    if len(pf.source_path) == 1:
+        raw_expr = f"{src_var}.get({json.dumps(pf.source_path[0])})"
+    else:
+        k0, k1 = pf.source_path[0], pf.source_path[1]
+        raw_expr = f"_nested_get({src_var}, {json.dumps(k0)}, {json.dumps(k1)})"
+
+    if pf.py_type == "str":
+        return f"str({raw_expr} or {pf.default_repr})"
+    if pf.py_type == "int":
+        return f"int({raw_expr} or 0)"
+    if pf.py_type == "float":
+        return f"float({raw_expr} or 0.0)"
+    if pf.py_type == "bool":
+        fallback = "True" if pf.default_repr == "True" else "False"
+        return f"bool({src_var}.get({json.dumps(pf.source_path[0])}, {fallback}))"
+    if pf.py_type == "str | None":
+        return f"_opt_str({raw_expr})"
+    if pf.py_type == "int | None":
+        return f"_opt_int({raw_expr})"
+    if pf.py_type == "float | None":
+        return f"_opt_float({raw_expr})"
+    return f"_opt_bool({raw_expr})"
+
+
+def _helper_functions_needed(fields: tuple[ProjectedField, ...]) -> list[str]:
+    helpers: list[str] = []
+    if any(len(f.source_path) > 1 for f in fields):
+        helpers.extend(
+            [
+                "def _nested_get(d: dict[str, Any], k0: str, k1: str) -> Any:",
+                "    sub = d.get(k0)",
+                "    return sub.get(k1) if isinstance(sub, dict) else None",
+                "",
+                "",
+            ]
+        )
+    if any(f.py_type == "str | None" for f in fields):
+        helpers.extend(
+            [
+                "def _opt_str(val: Any) -> str | None:",
+                "    return str(val) if val is not None else None",
+                "",
+                "",
+            ]
+        )
+    if any(f.py_type == "int | None" for f in fields):
+        helpers.extend(
+            [
+                "def _opt_int(val: Any) -> int | None:",
+                "    return int(val) if val is not None else None",
+                "",
+                "",
+            ]
+        )
+    if any(f.py_type == "float | None" for f in fields):
+        helpers.extend(
+            [
+                "def _opt_float(val: Any) -> float | None:",
+                "    return float(val) if val is not None else None",
+                "",
+                "",
+            ]
+        )
+    if any(f.py_type == "bool | None" for f in fields):
+        helpers.extend(
+            [
+                "def _opt_bool(val: Any) -> bool | None:",
+                "    return bool(val) if val is not None else None",
+                "",
+                "",
+            ]
+        )
+    return helpers
+
+
 def render_tool_module(tool_spec: dict[str, Any]) -> str:
     """Synthesize a strict-typed FastMCP 4.2 tool module for src/tools/<name>.py."""
     name = str(tool_spec["name"])
@@ -149,8 +251,11 @@ def render_tool_module(tool_spec: dict[str, Any]) -> str:
     idempotent = bool(ann.get("idempotentHint", method in {"GET", "PUT", "DELETE"}))
     open_world = bool(ann.get("openWorldHint", True))
 
-    model_name = f"{_to_pascal_case(name)}Response"
+    pascal = _to_pascal_case(name)
+    model_name = f"{pascal}Response"
+    item_model_name = f"{pascal}Item"
     params = _collect_tool_params(tool_spec)
+    projection = _projection_for_tool(tool_spec)
 
     lines: list[str] = [
         "from __future__ import annotations",
@@ -164,32 +269,89 @@ def render_tool_module(tool_spec: dict[str, Any]) -> str:
         "from src.deps import ApiClient, request_json",
         "",
         "",
-        f"class {model_name}(BaseModel):",
-        f'    """Concise structured output for {name}."""',
-        "",
-        '    id: str = Field(default="", description="Primary resource identifier.")',
-        '    title: str = Field(default="", description="Short resource summary or title.")',
-        '    status: str = Field(default="ok", description="Operational status.")',
-        '    severity: str = Field(default="unknown", description="Severity or classification.")',
-        "    data: dict[str, Any] = Field(",
-        "        default_factory=dict,",
-        '        description="Normalized upstream response payload.",',
-        "    )",
-        "",
-        "",
-        "@tool(",
-        f"    name={json.dumps(name)},",
-        f"    title={json.dumps(title)},",
-        "    annotations=ToolAnnotations(",
-        f"        read_only_hint={read_only},",
-        f"        destructive_hint={destructive},",
-        f"        idempotent_hint={idempotent},",
-        f"        open_world_hint={open_world},",
-        "    ),",
-        ")",
-        f"async def {name}(",
-        "    client: ApiClient,",
     ]
+
+    lines.extend(_helper_functions_needed(projection.fields))
+
+    if projection.kind == "legacy_fallback":
+        lines.extend(
+            [
+                f"class {model_name}(BaseModel):",
+                f'    """Concise structured output for {name}."""',
+                "",
+                '    id: str = Field(default="", description="Primary resource identifier.")',
+                '    title: str = Field(default="", description="Short resource summary.")',
+                '    status: str = Field(default="ok", description="Operational status.")',
+                '    severity: str = Field(default="unknown", description="Severity tier.")',
+                "    data: dict[str, Any] = Field(",
+                "        default_factory=dict,",
+                '        description="Normalized upstream response payload.",',
+                "    )",
+                "",
+                "",
+            ]
+        )
+    elif projection.kind == "collection":
+        lines.extend(
+            [
+                f"class {item_model_name}(BaseModel):",
+                f'    """Projected summary item for {name}."""',
+                "",
+            ]
+        )
+        for pf in projection.fields:
+            lines.extend(_render_field_decl(pf))
+        lines.extend(
+            [
+                "",
+                "",
+                f"class {model_name}(BaseModel):",
+                f'    """Paginated projected collection output for {name}."""',
+                "",
+                f"    items: list[{item_model_name}] = Field(",
+                "        default_factory=list,",
+                '        description="Projected high-signal items.",',
+                "    )",
+                "    next_cursor: str | None = Field(",
+                "        default=None,",
+                '        description="Opaque cursor for fetching the next page.",',
+                "    )",
+                "    total_returned: int = Field(",
+                "        default=0,",
+                '        description="Number of items returned in this page.",',
+                "    )",
+                "",
+                "",
+            ]
+        )
+    else:
+        lines.extend(
+            [
+                f"class {model_name}(BaseModel):",
+                f'    """Concise projected output for {name}."""',
+                "",
+            ]
+        )
+        for pf in projection.fields:
+            lines.extend(_render_field_decl(pf))
+        lines.extend(["", ""])
+
+    lines.extend(
+        [
+            "@tool(",
+            f"    name={json.dumps(name)},",
+            f"    title={json.dumps(title)},",
+            "    annotations=ToolAnnotations(",
+            f"        read_only_hint={read_only},",
+            f"        destructive_hint={destructive},",
+            f"        idempotent_hint={idempotent},",
+            f"        open_world_hint={open_world},",
+            "    ),",
+            ")",
+            f"async def {name}(",
+            "    client: ApiClient,",
+        ]
+    )
 
     for p in params:
         p_name = p["name"]
@@ -227,7 +389,6 @@ def render_tool_module(tool_spec: dict[str, Any]) -> str:
         ]
     )
 
-    # Format path interpolation
     url_expr = f'f"{path_str}"' if "{" in path_str else f'"{path_str}"'
     query_params = [p for p in params if p["in"] in {"query", "header"}]
     body_params = [p for p in params if p["in"] == "body"]
@@ -251,24 +412,112 @@ def render_tool_module(tool_spec: dict[str, Any]) -> str:
     call_lines.append("    )")
     lines.extend(call_lines)
 
-    lines.extend(
-        [
-            "    payload: dict[str, Any] = dict(raw)",
-            f"    return {model_name}(",
-            '        id=str(payload.get("id", "")),',
-            '        title=str(payload.get("title", "")),',
-            '        status=str(payload.get("status", "ok")),',
-            '        severity=str(payload.get("severity", "unknown")),',
-            "        data=payload,",
-            "    )",
-            "",
-        ]
-    )
+    if projection.kind == "legacy_fallback":
+        lines.extend(
+            [
+                "    payload: dict[str, Any] = dict(raw)",
+                f"    return {model_name}(",
+                '        id=str(payload.get("id", "")),',
+                '        title=str(payload.get("title", "")),',
+                '        status=str(payload.get("status", "ok")),',
+                '        severity=str(payload.get("severity", "unknown")),',
+                "        data=payload,",
+                "    )",
+                "",
+            ]
+        )
+    elif projection.kind == "collection":
+        coll_key_lit = json.dumps(projection.collection_key or "items")
+        cursor_key_lit = json.dumps(projection.cursor_key or "next_cursor")
+        lines.extend(
+            [
+                "    if isinstance(raw, list):",
+                "        raw_items: list[Any] = raw",
+                "        next_cur: str | None = None",
+                "    else:",
+                "        envelope: dict[str, Any] = dict(raw)",
+                f"        nested_list = envelope.get({coll_key_lit})",
+                "        raw_items = (",
+                "            nested_list",
+                "            if isinstance(nested_list, list)",
+                "            else ([envelope] if envelope else [])",
+                "        )",
+                f"        cur_val = envelope.get({cursor_key_lit})",
+                "        next_cur = str(cur_val) if cur_val is not None else None",
+                "    projected_items = [",
+                f"        {item_model_name}(",
+            ]
+        )
+        for pf in projection.fields:
+            lines.append(f"            {pf.py_name}={_render_value_expr(pf, 'entry')},")
+        lines.extend(
+            [
+                "        )",
+                "        for entry in raw_items",
+                "        if isinstance(entry, dict)",
+                "    ]",
+                f"    return {model_name}(",
+                "        items=projected_items,",
+                "        next_cursor=next_cur,",
+                "        total_returned=len(projected_items),",
+                "    )",
+                "",
+            ]
+        )
+    else:
+        lines.append("    payload: dict[str, Any] = dict(raw)")
+        lines.append(f"    return {model_name}(")
+        for pf in projection.fields:
+            lines.append(f"        {pf.py_name}={_render_value_expr(pf, 'payload')},")
+        lines.append("    )")
+        lines.append("")
+
     return "\n".join(lines)
 
 
+def _sample_item_payload(fields: tuple[ProjectedField, ...]) -> dict[str, Any]:
+    body: dict[str, Any] = {}
+    for pf in fields:
+        if len(pf.source_path) == 1:
+            body[pf.source_path[0]] = pf.sample_value
+        else:
+            k0, k1 = pf.source_path[0], pf.source_path[1]
+            sub = body.setdefault(k0, {})
+            if isinstance(sub, dict):
+                sub[k1] = pf.sample_value
+    if not body:
+        body = {"id": "INC-1", "status": "ok"}
+    return body
+
+
+def _py_literal(val: Any, indent: int = 4) -> str:
+    """Format a JSON-compatible Python value as a ruff-clean multi-line Python literal."""
+    pad = " " * indent
+    inner_pad = " " * (indent + 4)
+    if isinstance(val, dict):
+        if not val:
+            return "{}"
+        entries = [
+            f"{inner_pad}{json.dumps(str(k))}: {_py_literal(v, indent + 4)},"
+            for k, v in val.items()
+        ]
+        return "{\n" + "\n".join(entries) + f"\n{pad}}}"
+    if isinstance(val, list):
+        if not val:
+            return "[]"
+        items = [f"{inner_pad}{_py_literal(v, indent + 4)}," for v in val]
+        return "[\n" + "\n".join(items) + f"\n{pad}]"
+    if isinstance(val, bool):
+        return "True" if val else "False"
+    if val is None:
+        return "None"
+    if isinstance(val, str):
+        return json.dumps(val)
+    return repr(val)
+
+
 def render_unit_tests(manifest: dict[str, Any]) -> str:
-    """Synthesize comprehensive respx unit tests covering happy and HTTP error paths."""
+    """Synthesize comprehensive respx unit tests covering happy, sparse, and HTTP error paths."""
     tools: list[dict[str, Any]] = list(manifest.get("tools", []))
     lines: list[str] = [
         "from __future__ import annotations",
@@ -303,35 +552,73 @@ def render_unit_tests(manifest: dict[str, Any]) -> str:
             _, _, sample_val = _python_type_and_default(p)
             sample_args[p["name"]] = sample_val
 
-        args_literal = json.dumps(sample_args)
-        lines.extend(
-            [
-                "",
-                "@respx.mock",
-                f"async def test_{t_name}_happy_and_error_paths() -> None:",
-                f"    args = {args_literal}",
-                "    mock_body = {",
-                '        "id": "INC-1",',
-                '        "title": "Test Item",',
-                '        "status": "ok",',
-                '        "severity": "sev2",',
-                "    }",
-                "    respx.route().mock(",
-                "        return_value=httpx.Response(200, json=mock_body)",
-                "    )",
-                "    async with Client(mcp) as client:",
-                f'        result = await client.call_tool("{t_name}", args)',
-                "        assert result.is_error is False",
-                "        assert result.structured_content is not None",
-                "",
-                "        for status_code in (401, 404, 429, 500):",
-                "            err_resp = httpx.Response(status_code, json={\"error\": \"failed\"})",
-                "            respx.route().mock(return_value=err_resp)",
-                "            with pytest.raises(ToolError):",
-                f'                await client.call_tool("{t_name}", args)',
-                "",
-            ]
-        )
+        projection = _projection_for_tool(tool_spec)
+        item_payload = _sample_item_payload(projection.fields)
+        args_literal = _py_literal(sample_args, indent=4)
+
+        if projection.kind == "collection":
+            coll_key = projection.collection_key or "items"
+            cur_key = projection.cursor_key or "next_cursor"
+            envelope_payload = {coll_key: [item_payload], cur_key: "cur-next"}
+            env_lit = _py_literal(envelope_payload, indent=4)
+            list_lit = _py_literal([item_payload], indent=4)
+            lines.extend(
+                [
+                    "",
+                    "@respx.mock",
+                    f"async def test_{t_name}_happy_and_error_paths() -> None:",
+                    f"    args: dict[str, object] = {args_literal}",
+                    f"    env_body: dict[str, object] = {env_lit}",
+                    f"    list_body: list[object] = {list_lit}",
+                    "    async with Client(mcp) as client:",
+                    "        respx.route().mock(return_value=httpx.Response(200, json=env_body))",
+                    f'        result = await client.call_tool("{t_name}", args)',
+                    "        assert result.is_error is False",
+                    "        assert result.structured_content is not None",
+                    "",
+                    "        respx.route().mock(return_value=httpx.Response(200, json=list_body))",
+                    f'        list_res = await client.call_tool("{t_name}", args)',
+                    "        assert list_res.is_error is False",
+                    "",
+                    "        respx.route().mock(return_value=httpx.Response(200, json={}))",
+                    f'        sparse_res = await client.call_tool("{t_name}", args)',
+                    "        assert sparse_res.is_error is False",
+                    "",
+                    "        for status_code in (401, 404, 429, 500):",
+                    '            err = httpx.Response(status_code, json={"error": "failed"})',
+                    "            respx.route().mock(return_value=err)",
+                    "            with pytest.raises(ToolError):",
+                    f'                await client.call_tool("{t_name}", args)',
+                    "",
+                ]
+            )
+        else:
+            body_lit = _py_literal(item_payload, indent=4)
+            lines.extend(
+                [
+                    "",
+                    "@respx.mock",
+                    f"async def test_{t_name}_happy_and_error_paths() -> None:",
+                    f"    args: dict[str, object] = {args_literal}",
+                    f"    mock_body: dict[str, object] = {body_lit}",
+                    "    async with Client(mcp) as client:",
+                    "        respx.route().mock(return_value=httpx.Response(200, json=mock_body))",
+                    f'        result = await client.call_tool("{t_name}", args)',
+                    "        assert result.is_error is False",
+                    "        assert result.structured_content is not None",
+                    "",
+                    "        respx.route().mock(return_value=httpx.Response(200, json={}))",
+                    f'        sparse_res = await client.call_tool("{t_name}", args)',
+                    "        assert sparse_res.is_error is False",
+                    "",
+                    "        for status_code in (401, 404, 429, 500):",
+                    '            err = httpx.Response(status_code, json={"error": "failed"})',
+                    "            respx.route().mock(return_value=err)",
+                    "            with pytest.raises(ToolError):",
+                    f'                await client.call_tool("{t_name}", args)',
+                    "",
+                ]
+            )
 
     return "\n".join(lines)
 
@@ -368,7 +655,7 @@ def render_readme(manifest: dict[str, Any]) -> str:
             "## Protocol Compliance",
             "",
             "- **MCP Revision:** `2026-07-28` (`SEP-2575`, `SEP-2567` stateless HTTP)",
-            "- **Runtime:** Python 3.12 + FastMCP 4.2",
+            "- **Runtime:** Python 3.12 + FastMCP 4.x",
             "",
             "## Environment Variables",
             "",

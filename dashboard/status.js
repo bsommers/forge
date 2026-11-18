@@ -1,8 +1,8 @@
 // MCP Server Forge Live Telemetry Payload
-// Generated at 2026-11-17T04:42:31.971393+00:00
+// Generated at 2026-11-18T22:19:42.286803+00:00
 window.__FORGE_TELEMETRY__ = {
-  "timestamp": "2026-11-17T04:42:31.971393+00:00",
-  "time_display": "04:42:31 UTC",
+  "timestamp": "2026-11-18T22:19:42.286803+00:00",
+  "time_display": "22:19:42 UTC",
   "overall_status": "ALL SYSTEMS VERIFIED",
   "overall_progress": 100,
   "active_subagents": 0,
@@ -128,20 +128,20 @@ window.__FORGE_TELEMETRY__ = {
     }
   },
   "workspace": {
-    "total_files": 105,
-    "total_loc": 15076,
+    "total_files": 110,
+    "total_loc": 16886,
     "by_dir": {
       ".": {
         "files": 10,
-        "lines": 1051
+        "lines": 1070
       },
       "src": {
         "files": 10,
         "lines": 872
       },
       "forge": {
-        "files": 5,
-        "lines": 1213
+        "files": 6,
+        "lines": 2159
       },
       "golden-template": {
         "files": 17,
@@ -149,11 +149,11 @@ window.__FORGE_TELEMETRY__ = {
       },
       "spec": {
         "files": 3,
-        "lines": 382
+        "lines": 472
       },
       "tests": {
-        "files": 10,
-        "lines": 1392
+        "files": 12,
+        "lines": 1837
       },
       "scripts": {
         "files": 2,
@@ -164,14 +164,14 @@ window.__FORGE_TELEMETRY__ = {
         "lines": 2837
       },
       "docs": {
-        "files": 41,
-        "lines": 3300
+        "files": 43,
+        "lines": 3610
       }
     },
     "by_ext": {
       ".md": {
-        "files": 22,
-        "lines": 3484
+        "files": 24,
+        "lines": 3813
       },
       ".txt": {
         "files": 5,
@@ -183,11 +183,11 @@ window.__FORGE_TELEMETRY__ = {
       },
       ".json": {
         "files": 8,
-        "lines": 451
+        "lines": 527
       },
       ".py": {
-        "files": 38,
-        "lines": 7948
+        "files": 41,
+        "lines": 9339
       },
       ".typed": {
         "files": 1,
@@ -195,7 +195,7 @@ window.__FORGE_TELEMETRY__ = {
       },
       ".yaml": {
         "files": 1,
-        "lines": 201
+        "lines": 215
       },
       ".html": {
         "files": 2,
@@ -216,204 +216,204 @@ window.__FORGE_TELEMETRY__ = {
     },
     "recent_files": [
       {
+        "path": "golden-template/pyproject.toml",
+        "filename": "pyproject.toml",
+        "directory": "golden-template",
+        "size": 1538,
+        "loc": 71,
+        "mtime": 1795040380.3400097,
+        "time_str": "22:19:40 UTC",
+        "owner": "core"
+      },
+      {
+        "path": "pyproject.toml",
+        "filename": "pyproject.toml",
+        "directory": ".",
+        "size": 1741,
+        "loc": 78,
+        "mtime": 1795040379.1637661,
+        "time_str": "22:19:39 UTC",
+        "owner": "core"
+      },
+      {
+        "path": "CHANGELOG.md",
+        "filename": "CHANGELOG.md",
+        "directory": ".",
+        "size": 6276,
+        "loc": 51,
+        "mtime": 1795040364.479316,
+        "time_str": "22:19:24 UTC",
+        "owner": "workspace"
+      },
+      {
+        "path": "AGENTS.md",
+        "filename": "AGENTS.md",
+        "directory": ".",
+        "size": 5473,
+        "loc": 47,
+        "mtime": 1795040362.8957794,
+        "time_str": "22:19:22 UTC",
+        "owner": "workspace"
+      },
+      {
+        "path": "docs/ARCHITECTURE.md",
+        "filename": "ARCHITECTURE.md",
+        "directory": "docs",
+        "size": 19102,
+        "loc": 288,
+        "mtime": 1795040360.777885,
+        "time_str": "22:19:20 UTC",
+        "owner": "workspace"
+      },
+      {
+        "path": "docs/plans/01-high-signal-codegen-and-agent-refinement.md",
+        "filename": "01-high-signal-codegen-and-agent-refinement.md",
+        "directory": "docs",
+        "size": 17471,
+        "loc": 234,
+        "mtime": 1795040359.6693454,
+        "time_str": "22:19:19 UTC",
+        "owner": "workspace"
+      },
+      {
+        "path": "docs/ROADMAP.md",
+        "filename": "ROADMAP.md",
+        "directory": "docs",
+        "size": 5949,
+        "loc": 49,
+        "mtime": 1795040357.9506738,
+        "time_str": "22:19:17 UTC",
+        "owner": "workspace"
+      },
+      {
+        "path": "docs/user-guide/02-forging-servers.md",
+        "filename": "02-forging-servers.md",
+        "directory": "docs",
+        "size": 6649,
+        "loc": 159,
+        "mtime": 1795040356.597185,
+        "time_str": "22:19:16 UTC",
+        "owner": "workspace"
+      },
+      {
+        "path": "docs/user-guide/04-cli-and-config-reference.md",
+        "filename": "04-cli-and-config-reference.md",
+        "directory": "docs",
+        "size": 7287,
+        "loc": 130,
+        "mtime": 1795040355.208463,
+        "time_str": "22:19:15 UTC",
+        "owner": "workspace"
+      },
+      {
         "path": ".coverage",
         "filename": ".coverage",
         "directory": ".",
         "size": 69632,
         "loc": 487,
-        "mtime": 1794890535.690092,
-        "time_str": "04:42:15 UTC",
+        "mtime": 1795040332.0862916,
+        "time_str": "22:18:52 UTC",
         "owner": "workspace"
       },
       {
-        "path": "tests/forge/test_docs_alignment.py",
-        "filename": "test_docs_alignment.py",
-        "directory": "tests",
-        "size": 5145,
-        "loc": 118,
-        "mtime": 1794890514.6577663,
-        "time_str": "04:41:54 UTC",
+        "path": "forge/codegen.py",
+        "filename": "codegen.py",
+        "directory": "forge",
+        "size": 27160,
+        "loc": 701,
+        "mtime": 1795040286.0675747,
+        "time_str": "22:18:06 UTC",
         "owner": "pipeline"
       },
       {
-        "path": "dashboard/status.js",
-        "filename": "status.js",
-        "directory": "dashboard",
-        "size": 17282,
-        "loc": 609,
-        "mtime": 1794890488.6669683,
-        "time_str": "04:41:28 UTC",
-        "owner": "dashboard"
+        "path": "forge/projection.py",
+        "filename": "projection.py",
+        "directory": "forge",
+        "size": 14169,
+        "loc": 394,
+        "mtime": 1795040282.8744056,
+        "time_str": "22:18:02 UTC",
+        "owner": "pipeline"
       },
       {
-        "path": "docs/assets/examples/workflow-mcp-2026-gates.png",
-        "filename": "workflow-mcp-2026-gates.png",
-        "directory": "docs",
-        "size": 88775,
-        "loc": 0,
-        "mtime": 1794890425.180931,
-        "time_str": "04:40:25 UTC",
-        "owner": "workspace"
+        "path": "tests/forge/test_schema_projection.py",
+        "filename": "test_schema_projection.py",
+        "directory": "tests",
+        "size": 10290,
+        "loc": 263,
+        "mtime": 1795040173.528135,
+        "time_str": "22:16:13 UTC",
+        "owner": "pipeline"
       },
       {
-        "path": "docs/assets/examples/workflow-mcp-2026-gates.svg",
-        "filename": "workflow-mcp-2026-gates.svg",
-        "directory": "docs",
-        "size": 16945,
-        "loc": 0,
-        "mtime": 1794890425.100647,
-        "time_str": "04:40:25 UTC",
-        "owner": "workspace"
+        "path": "forge/orchestrator.py",
+        "filename": "orchestrator.py",
+        "directory": "forge",
+        "size": 20676,
+        "loc": 591,
+        "mtime": 1795040168.133505,
+        "time_str": "22:16:08 UTC",
+        "owner": "pipeline"
       },
       {
-        "path": "docs/assets/examples/workflow-self-healing-sandbox.png",
-        "filename": "workflow-self-healing-sandbox.png",
-        "directory": "docs",
-        "size": 87055,
-        "loc": 0,
-        "mtime": 1794890425.1003036,
-        "time_str": "04:40:25 UTC",
-        "owner": "workspace"
+        "path": "tests/forge/test_host_agent_mode.py",
+        "filename": "test_host_agent_mode.py",
+        "directory": "tests",
+        "size": 4153,
+        "loc": 110,
+        "mtime": 1795040084.9639647,
+        "time_str": "22:14:44 UTC",
+        "owner": "pipeline"
       },
       {
-        "path": "docs/assets/examples/workflow-self-healing-sandbox.svg",
-        "filename": "workflow-self-healing-sandbox.svg",
-        "directory": "docs",
-        "size": 14187,
-        "loc": 0,
-        "mtime": 1794890425.0232193,
-        "time_str": "04:40:25 UTC",
-        "owner": "workspace"
+        "path": "forge/__init__.py",
+        "filename": "__init__.py",
+        "directory": "forge",
+        "size": 559,
+        "loc": 19,
+        "mtime": 1795040081.66075,
+        "time_str": "22:14:41 UTC",
+        "owner": "pipeline"
       },
       {
-        "path": "docs/assets/examples/workflow-openapi-ingest.png",
-        "filename": "workflow-openapi-ingest.png",
-        "directory": "docs",
-        "size": 74239,
-        "loc": 0,
-        "mtime": 1794890425.0228887,
-        "time_str": "04:40:25 UTC",
-        "owner": "workspace"
+        "path": "tests/forge/test_ingest_openapi.py",
+        "filename": "test_ingest_openapi.py",
+        "directory": "tests",
+        "size": 13320,
+        "loc": 362,
+        "mtime": 1795039718.513723,
+        "time_str": "22:08:38 UTC",
+        "owner": "pipeline"
       },
       {
-        "path": "docs/assets/examples/workflow-openapi-ingest.svg",
-        "filename": "workflow-openapi-ingest.svg",
-        "directory": "docs",
-        "size": 16077,
-        "loc": 0,
-        "mtime": 1794890424.951712,
-        "time_str": "04:40:24 UTC",
-        "owner": "workspace"
+        "path": "spec/cloud-billing.openapi.json",
+        "filename": "cloud-billing.openapi.json",
+        "directory": "spec",
+        "size": 6747,
+        "loc": 238,
+        "mtime": 1795039626.7637362,
+        "time_str": "22:07:06 UTC",
+        "owner": "pipeline"
       },
       {
-        "path": "docs/assets/examples/architecture-overview.png",
-        "filename": "architecture-overview.png",
-        "directory": "docs",
-        "size": 82334,
-        "loc": 0,
-        "mtime": 1794890424.9513757,
-        "time_str": "04:40:24 UTC",
-        "owner": "workspace"
+        "path": "spec/acme-incidents.openapi.yaml",
+        "filename": "acme-incidents.openapi.yaml",
+        "directory": "spec",
+        "size": 6724,
+        "loc": 215,
+        "mtime": 1795039624.3902924,
+        "time_str": "22:07:04 UTC",
+        "owner": "pipeline"
       },
       {
-        "path": "docs/assets/examples/architecture-overview.svg",
-        "filename": "architecture-overview.svg",
-        "directory": "docs",
-        "size": 19173,
-        "loc": 0,
-        "mtime": 1794890424.8731704,
-        "time_str": "04:40:24 UTC",
-        "owner": "workspace"
-      },
-      {
-        "path": "docs/assets/icons/icon-govern.png",
-        "filename": "icon-govern.png",
-        "directory": "docs",
-        "size": 25350,
-        "loc": 0,
-        "mtime": 1794890424.8723397,
-        "time_str": "04:40:24 UTC",
-        "owner": "workspace"
-      },
-      {
-        "path": "docs/assets/icons/icon-govern.svg",
-        "filename": "icon-govern.svg",
-        "directory": "docs",
-        "size": 4335,
-        "loc": 0,
-        "mtime": 1794890424.8600595,
-        "time_str": "04:40:24 UTC",
-        "owner": "workspace"
-      },
-      {
-        "path": "docs/assets/icons/icon-verify.png",
-        "filename": "icon-verify.png",
-        "directory": "docs",
-        "size": 22484,
-        "loc": 0,
-        "mtime": 1794890424.8598835,
-        "time_str": "04:40:24 UTC",
-        "owner": "workspace"
-      },
-      {
-        "path": "docs/assets/icons/icon-verify.svg",
-        "filename": "icon-verify.svg",
-        "directory": "docs",
-        "size": 4430,
-        "loc": 0,
-        "mtime": 1794890424.8482678,
-        "time_str": "04:40:24 UTC",
-        "owner": "workspace"
-      },
-      {
-        "path": "docs/assets/icons/icon-sandbox.png",
-        "filename": "icon-sandbox.png",
-        "directory": "docs",
-        "size": 23663,
-        "loc": 0,
-        "mtime": 1794890424.8481274,
-        "time_str": "04:40:24 UTC",
-        "owner": "workspace"
-      },
-      {
-        "path": "docs/assets/icons/icon-sandbox.svg",
-        "filename": "icon-sandbox.svg",
-        "directory": "docs",
-        "size": 4342,
-        "loc": 0,
-        "mtime": 1794890424.8363738,
-        "time_str": "04:40:24 UTC",
-        "owner": "workspace"
-      },
-      {
-        "path": "docs/assets/icons/icon-template.png",
-        "filename": "icon-template.png",
-        "directory": "docs",
-        "size": 21090,
-        "loc": 0,
-        "mtime": 1794890424.8362381,
-        "time_str": "04:40:24 UTC",
-        "owner": "workspace"
-      },
-      {
-        "path": "docs/assets/icons/icon-template.svg",
-        "filename": "icon-template.svg",
-        "directory": "docs",
-        "size": 4343,
-        "loc": 0,
-        "mtime": 1794890424.82452,
-        "time_str": "04:40:24 UTC",
-        "owner": "workspace"
-      },
-      {
-        "path": "docs/assets/icons/icon-ingest.png",
-        "filename": "icon-ingest.png",
-        "directory": "docs",
-        "size": 22962,
-        "loc": 0,
-        "mtime": 1794890424.8243737,
-        "time_str": "04:40:24 UTC",
-        "owner": "workspace"
+        "path": "forge/ingest_openapi.py",
+        "filename": "ingest_openapi.py",
+        "directory": "forge",
+        "size": 13995,
+        "loc": 344,
+        "mtime": 1795039598.8533425,
+        "time_str": "22:06:38 UTC",
+        "owner": "pipeline"
       }
     ],
     "has_venv": true,

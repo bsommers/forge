@@ -59,6 +59,50 @@
             "description": "Percentage threshold at which to emit cost alerts."
           }
         }
+      },
+      "InvoiceItem": {
+        "type": "object",
+        "required": ["invoice_id", "status", "total_usd"],
+        "properties": {
+          "invoice_id": {
+            "type": "string",
+            "description": "Unique invoice identifier."
+          },
+          "billing_period": {
+            "type": "string",
+            "description": "Billing month (YYYY-MM)."
+          },
+          "status": {
+            "type": "string",
+            "description": "Invoice settlement status (open, paid, overdue)."
+          },
+          "total_usd": {
+            "type": "number",
+            "description": "Total billed amount in USD."
+          }
+        }
+      },
+      "BudgetStatus": {
+        "type": "object",
+        "required": ["account_id", "monthly_limit_usd", "current_spend_usd"],
+        "properties": {
+          "account_id": {
+            "type": "string",
+            "description": "Cloud billing account identifier."
+          },
+          "monthly_limit_usd": {
+            "type": "integer",
+            "description": "Configured monthly spend cap in USD."
+          },
+          "current_spend_usd": {
+            "type": "number",
+            "description": "Month-to-date spend in USD."
+          },
+          "alert_threshold_pct": {
+            "type": "integer",
+            "description": "Alert threshold percentage."
+          }
+        }
       }
     }
   },
@@ -90,7 +134,25 @@
         ],
         "responses": {
           "200": {
-            "description": "Invoice list for account."
+            "description": "Invoice list for account.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "invoices": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/InvoiceItem"
+                      }
+                    },
+                    "next_cursor": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -108,7 +170,14 @@
         "tags": ["budgets"],
         "responses": {
           "200": {
-            "description": "Current budget status."
+            "description": "Current budget status.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BudgetStatus"
+                }
+              }
+            }
           }
         }
       },
@@ -129,7 +198,14 @@
         },
         "responses": {
           "200": {
-            "description": "Updated budget configuration."
+            "description": "Updated budget configuration.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BudgetStatus"
+                }
+              }
+            }
           }
         }
       }

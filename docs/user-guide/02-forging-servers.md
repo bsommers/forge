@@ -86,6 +86,24 @@ Inside `/tmp/forged-billing-invoices`, you receive a complete, verified FastMCP 
 
 ---
 
+## Running Docker-Free Host-Agent Mode (`--execution-mode agent`)
+
+To combine deterministic `--local` high-signal projection (`--max-output-fields 8`) with semantic polish from a local CLI coding agent—without building Docker images—use `--execution-mode agent`:
+
+```bash
+.venv/bin/python -m forge.orchestrator \
+  --spec spec/acme-incidents.openapi.yaml \
+  --name acme-incidents \
+  --output-dir /tmp/forged-acme-agent \
+  --max-output-fields 8 \
+  --execution-mode agent \
+  --agent-cmd "claude --print -p {prompt_file}"
+```
+
+`forge.orchestrator` seeds `src/tools/` via `forge/codegen.py`, applies `0444` read-only locks + pre/post SHA-256 tamper digests across all Golden Template paths (`TamperDetectionError` on any mutation), and runs up to 3 self-healing `validate_mcp.py` iterations.
+
+---
+
 ## Running Hardened Container Mode (`--execution-mode docker`)
 
 In CI/CD pipelines where an external LLM coding agent synthesizes richer domain projections inside a locked container:
