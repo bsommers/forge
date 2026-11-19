@@ -213,10 +213,11 @@ docker run -i --rm \
 | **[Documentation Hub](docs/README.md)** | Complete documentation map and recommended reading order |
 | **[Interactive Showcase](docs/index.html)** | GitHub Pages visual gallery and interactive capability/gate explorer |
 | **[System Architecture](docs/ARCHITECTURE.md)** | Component map, data flows, sequence/ER/state Mermaid diagrams & ADRs |
+| **[Secure Design Patterns (`mcp-serve`)](docs/SECURE_DESIGN_PATTERNS.md)** | `MCP-001`–`MCP-008` patterns, spec authorities & link to [`bsommers/secure-design-patterns`](https://github.com/bsommers/secure-design-patterns) |
 | **[Purpose & Threat Model](docs/PURPOSE.md)** | Problem statement, security boundaries, goals, non-goals & trade-offs |
 | **[How-To Guide](docs/HOWTO.md)** | Copy-pasteable recipes for setup, `--tag-filter`, auth modes, custom tools & debugging |
 | **[Product Brochure](docs/brochure.md)** | Executive showcase with Khazad-dûm visuals, personas & value pillars |
-| **[Milestone Roadmap](docs/ROADMAP.md)** | Planned milestones (`M1`–`M3`) & [Plan 01: High-Signal `--local` Projection & Host-Agent Mode](docs/plans/01-high-signal-codegen-and-agent-refinement.md) |
+| **[Milestone Roadmap](docs/ROADMAP.md)** | Shipped (`M0`–`M3`) & planned (`M4`–`M5`) milestones, including [Plan 03: Wild OpenAPI, Payload Bounding & Composite Workflows](docs/plans/03-wild-openapi-resilience-composite-tools-and-hardened-bounds.md) |
 | **[Agent Context (`AGENTS.md`)](AGENTS.md)** | Cold-start briefing, invariants & pitfalls for AI coding agents |
 | **[Changelog](CHANGELOG.md)** | Release history and verification records |
 

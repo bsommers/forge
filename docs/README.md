@@ -21,10 +21,13 @@ docs/
 ├── README.md                         # You are here: central documentation hub
 ├── PURPOSE.md                        # Problem statement, threat model, goals & trade-offs
 ├── ARCHITECTURE.md                   # 5-stage pipeline, runtime internals, Mermaid & ASCII models
+├── SECURE_DESIGN_PATTERNS.md         # 8 MCP 2026-07-28 secure design patterns (MCP-001..MCP-008)
 ├── HOWTO.md                          # Task-oriented operational recipes & debugging guide
-├── ROADMAP.md                        # Milestone roadmap (M1-M3) & gap matrix
+├── ROADMAP.md                        # Milestone roadmap (M0-M5) & gap matrix
 ├── plans/                            # Contract-first implementation plans
-│   └── 01-high-signal-codegen-and-agent-refinement.md
+│   ├── 01-high-signal-codegen-and-agent-refinement.md
+│   ├── 02-per-operation-auth-and-multi-tag-sharding.md
+│   └── 03-wild-openapi-resilience-composite-tools-and-hardened-bounds.md
 ├── brochure.md                       # Executive stakeholder showcase with Khazad-dûm visuals
 ├── assets/                           # Khazad-dûm Dwarven Forge SVG + PNG graphics & illustrations
 │   ├── logo.{svg,png}                # 1200x380 Forge hero banner
@@ -49,7 +52,7 @@ docs/
 
 1. **Executive Overview:** Start with the [Product Brochure](brochure.md) and [Purpose & Threat Model](PURPOSE.md) to understand why MCP `2026-07-28` servers require locked Golden Templates and deterministic gates.
 2. **Hands-On Onboarding:** Follow [User Guide — Chapter 1: Getting Started](user-guide/01-getting-started.md) or [Operational How-To Recipes](HOWTO.md) to run `scripts/validate_mcp.py` and forge your first server.
-3. **Deep System Design:** Read [System Architecture](ARCHITECTURE.md) for sequence diagrams, state machines, ER schemas, and middleware internals.
+3. **Deep System Design & Security Patterns:** Read [System Architecture](ARCHITECTURE.md) and [MCP `2026-07-28` Secure Design Patterns](SECURE_DESIGN_PATTERNS.md) (plus the standalone [`bsommers/secure-design-patterns`](https://github.com/bsommers/secure-design-patterns) catalog) for sequence diagrams, state machines, ER schemas, normative authorities, and middleware internals.
 4. **Authoring & Reference:** Consult [Chapter 3: Authoring MCP `2026-07-28` Tools](user-guide/03-mcp-2026-07-28-authoring.md) and [Chapter 4: CLI & Configuration Reference](user-guide/04-cli-and-config-reference.md).
 
 ---

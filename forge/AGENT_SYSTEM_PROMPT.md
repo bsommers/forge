@@ -29,12 +29,16 @@ You are building domain tools and unit tests inside a hardened Python 3.12 + **F
 4. **Tool Naming & `ToolAnnotations`:**
    * Every tool in `forge-manifest.json` must be registered using `@tool(name=..., title=..., annotations=ToolAnnotations(...))` imported from `fastmcp.tools` and `mcp.types`.
    * Tool `name` and `ToolAnnotations` (`readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint`) **MUST match `forge-manifest.json` exactly**.
-5. **`x-mcp-header` Parameter Mirroring (Optional, Strict Rules):**
+5. **`x-mcp-header` Parameter Mirroring (Optional, Strict Rules — Pattern `MCP-007`):**
    * Only add `json_schema_extra={"x-mcp-header": "..."}` if explicitly requested in `forge-manifest.json`.
    * Never attach `x-mcp-header` to sensitive fields (`token`, `key`, `secret`, `password`, `authorization`, PII) or non-primitive types (`number`, `object`, `array`).
+   * **CRITICAL (`mcp==2.3.0`):** Never type an optional `x-mcp-header` parameter as `str | None` (`anyOf`), which causes `mcp` to drop the tool from `tools/list`. Always declare optional `x-mcp-header` parameters as `Annotated[str, Field(default="", ...)] = ""` and omit empty strings when building headers.
 6. **Actionable Tool Errors (`isError: true`):**
    * Use `await request_json(client, method, path, params=..., json_body=...)` from `src.deps` for all upstream HTTP calls. It automatically converts upstream timeouts and HTTP `401`/`403`/`404`/`429`/`5xx` responses into `fastmcp.exceptions.ToolError` (`isError: true`) without leaking credentials.
    * For domain validation errors inside a tool, raise `ToolError("Clear actionable message...")`.
+7. **High-Signal Projection & Data-Carrier Preservation (Patterns `MCP-003` & `MCP-004`):**
+   * Preserve primary domain data carriers (`rows`, `series`, `datapoints`, `items`, `events`) alongside concise scalar identifiers (`id`, `status`, `title`), never dumping raw unprojected `dict[str, Any]` upstream blobs.
+   * Cap list parameters with explicit bounds (e.g., `limit: Annotated[int, Field(default=25, ge=1, le=100)] = 25`) so both collection cardinality and byte size remain well within `ForgeResponseLimitingMiddleware`'s `32,768`-byte budget.
 
 ---
 

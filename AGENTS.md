@@ -28,7 +28,7 @@
 - `scripts/validate_mcp.py` — 5-gate deterministic verifier (Ruff, Mypy `--strict`, AST `SEP-2577` audit, Pytest `>=85%` branch coverage, subprocess `stdio` `server/discover`).
 - `spec/` — OpenAPI 3.1 specifications (`acme-incidents.openapi.yaml`, `cloud-billing.openapi.json`).
 - `dashboard/` — Local zero-CORS HTML Mission Control dashboard (`index.html`, `telemetry.py`, `status.js`).
-- `docs/` — Living docs (`ARCHITECTURE.md`, `PURPOSE.md`, `HOWTO.md`, `brochure.md`, `index.html`, `user-guide/`).
+- `docs/` — Living docs (`ARCHITECTURE.md`, `SECURE_DESIGN_PATTERNS.md`, `PURPOSE.md`, `HOWTO.md`, `ROADMAP.md`, `plans/01..03`, `brochure.md`, `index.html`, `user-guide/`).
 
 ## 4. Non-Negotiable Invariants & Contracts
 1. **Token Passthrough Prohibition:** Upstream credentials MUST come exclusively from server-bound env vars via `src/auth.py`; never forward MCP client auth headers upstream.
