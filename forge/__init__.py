@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-__version__ = "1.2.0"
+__version__ = "1.3.0"
 
 __all__ = [
     "__version__",
@@ -11,9 +11,15 @@ __all__ = [
     "SpecNormalizationError",
     "TamperDetectionError",
     "normalize_openapi_to_manifest",
+    "plan_openapi_shards",
     "project_response_schema",
+    "run_sharded_forge_pipeline",
 ]
 
-from forge.ingest_openapi import SpecNormalizationError, normalize_openapi_to_manifest
-from forge.orchestrator import TamperDetectionError
+from forge.ingest_openapi import (
+    SpecNormalizationError,
+    normalize_openapi_to_manifest,
+    plan_openapi_shards,
+)
+from forge.orchestrator import TamperDetectionError, run_sharded_forge_pipeline
 from forge.projection import ProjectedField, ResponseProjection, project_response_schema

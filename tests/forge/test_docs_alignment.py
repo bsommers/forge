@@ -44,6 +44,7 @@ LIVING_MARKDOWN_DOCS = [
     ROOT / "docs" / "HOWTO.md",
     ROOT / "docs" / "ROADMAP.md",
     ROOT / "docs" / "plans" / "01-high-signal-codegen-and-agent-refinement.md",
+    ROOT / "docs" / "plans" / "02-per-operation-auth-and-multi-tag-sharding.md",
     ROOT / "docs" / "brochure.md",
     ROOT / "docs" / "user-guide" / "README.md",
     ROOT / "docs" / "user-guide" / "01-getting-started.md",

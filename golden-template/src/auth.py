@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
+from urllib.parse import urlparse
 
 import httpx
 
@@ -29,6 +31,43 @@ def _require_env(env_name: str) -> str:
             f"Missing required credential environment variable: {env_name}"
         )
     return value
+
+
+def iter_manifest_auth_env_vars(manifest: dict[str, Any]) -> list[str]:
+    """Return all server-bound credential env var names required by active auth schemes."""
+    tools = manifest.get("tools", [])
+    used_schemes: set[str] = set()
+    needs_default = not tools
+
+    for tool in tools:
+        if not isinstance(tool, dict):
+            continue
+        scheme = tool.get("auth_scheme")
+        if isinstance(scheme, str) and scheme:
+            if scheme.lower() != "none":
+                used_schemes.add(scheme)
+        else:
+            needs_default = True
+
+    configs: list[dict[str, Any]] = []
+    if needs_default:
+        default_cfg = manifest.get("auth", {"type": "none"})
+        if isinstance(default_cfg, dict):
+            configs.append(default_cfg)
+
+    named = manifest.get("auth_schemes", {})
+    if isinstance(named, dict):
+        for name in sorted(used_schemes):
+            sub_cfg = named.get(name)
+            if isinstance(sub_cfg, dict):
+                configs.append(sub_cfg)
+
+    env_vars: list[str] = []
+    for cfg in configs:
+        for key, val in cfg.items():
+            if key.endswith("_env") and isinstance(val, str) and val not in env_vars:
+                env_vars.append(val)
+    return env_vars
 
 
 class HeaderTokenAuth(httpx.Auth):
@@ -58,7 +97,9 @@ class QueryApiKeyAuth(httpx.Auth):
 class OAuth2ClientCredentialsAuth(httpx.Auth):
     """Async OAuth2 Client Credentials flow with in-memory expiry caching."""
 
-    def __init__(self, token_url: str, client_id: str, client_secret: str, scope: str = "") -> None:
+    def __init__(
+        self, token_url: str, client_id: str, client_secret: str, scope: str = ""
+    ) -> None:
         self._token_url = token_url
         self._client_id = client_id
         self._client_secret = client_secret
@@ -96,8 +137,78 @@ class OAuth2ClientCredentialsAuth(httpx.Auth):
             yield request
 
 
-def build_auth_from_manifest(manifest: dict[str, Any]) -> httpx.Auth | None:
-    auth_cfg: dict[str, Any] = manifest.get("auth", {"type": "none"})
+def compile_path_template(path_template: str) -> tuple[int, re.Pattern[str]]:
+    """Compile an OpenAPI path template into a priority-scored exact relative path regex."""
+    segments = [seg for seg in path_template.strip("/").split("/") if seg]
+    if not segments:
+        return (0, re.compile(r"^/?$"))
+    static_count = sum(1 for s in segments if not (s.startswith("{") and s.endswith("}")))
+    regex_parts = [
+        r"[^/]+" if (s.startswith("{") and s.endswith("}")) else re.escape(s)
+        for s in segments
+    ]
+    return (static_count, re.compile(r"^/" + "/".join(regex_parts) + r"$"))
+
+
+class RouteDispatchAuth(httpx.Auth):
+    """Per-operation httpx.Auth router honoring OpenAPI security overrides."""
+
+    def __init__(
+        self,
+        default_auth: httpx.Auth | None,
+        scheme_handlers: dict[str, httpx.Auth | None],
+        route_overrides: list[tuple[str, re.Pattern[str], str]],
+        base_path: str = "",
+    ) -> None:
+        self._default_auth = default_auth
+        self._scheme_handlers = scheme_handlers
+        self._route_overrides = route_overrides
+        self._base_path = base_path.rstrip("/")
+
+    def _normalize_rel_path(self, raw_path: str) -> str:
+        if self._base_path and raw_path.startswith(self._base_path):
+            stripped = raw_path[len(self._base_path) :]
+            return stripped if stripped.startswith("/") else f"/{stripped}"
+        return raw_path or "/"
+
+    def _resolve_handler(self, request: httpx.Request) -> httpx.Auth | None:
+        ext_scheme = request.extensions.get("forge_auth_scheme")
+        if isinstance(ext_scheme, str) and ext_scheme:
+            if ext_scheme.lower() == "none":
+                return None
+            return self._scheme_handlers.get(ext_scheme, self._default_auth)
+
+        method = request.method.upper()
+        rel_path = self._normalize_rel_path(request.url.path)
+        for ov_method, pattern, scheme_name in self._route_overrides:
+            if ov_method == method and pattern.match(rel_path):
+                if scheme_name.lower() == "none":
+                    return None
+                return self._scheme_handlers[scheme_name]
+        return self._default_auth
+
+    async def async_auth_flow(
+        self, request: httpx.Request
+    ) -> AsyncGenerator[httpx.Request, httpx.Response]:
+        handler = self._resolve_handler(request)
+        if handler is None:
+            yield request
+            return
+
+        gen = handler.async_auth_flow(request)
+        try:
+            req = await gen.__anext__()
+            while True:
+                response = yield req
+                req = await gen.asend(response)
+        except StopAsyncIteration:
+            return
+        finally:
+            await gen.aclose()
+
+
+def build_auth_handler(auth_cfg: dict[str, Any]) -> httpx.Auth | None:
+    """Build a single httpx.Auth instance from a declarative auth configuration mapping."""
     auth_type = str(auth_cfg.get("type", "none")).lower()
 
     if auth_type == "none":
@@ -125,3 +236,58 @@ def build_auth_from_manifest(manifest: dict[str, Any]) -> httpx.Auth | None:
         return OAuth2ClientCredentialsAuth(token_url, client_id, client_secret, scope)
 
     raise ManifestConfigError(f"Unsupported auth.type in forge-manifest.json: {auth_type}")
+
+
+def build_auth_from_manifest(manifest: dict[str, Any]) -> httpx.Auth | None:
+    auth_cfg: dict[str, Any] = manifest.get("auth", {"type": "none"})
+    tools = manifest.get("tools", [])
+    raw_schemes = manifest.get("auth_schemes", {})
+    named_cfgs: dict[str, Any] = raw_schemes if isinstance(raw_schemes, dict) else {}
+
+    scored_overrides: list[tuple[int, str, re.Pattern[str], str]] = []
+    referenced_schemes: set[str] = set()
+    needs_default = not tools
+
+    for tool in tools:
+        if not isinstance(tool, dict):
+            continue
+        scheme = tool.get("auth_scheme")
+        if isinstance(scheme, str) and scheme:
+            static_score, pattern = compile_path_template(str(tool.get("path", "/")))
+            scored_overrides.append(
+                (static_score, str(tool.get("method", "GET")).upper(), pattern, scheme)
+            )
+            if scheme.lower() != "none":
+                referenced_schemes.add(scheme)
+        else:
+            needs_default = True
+
+    if not scored_overrides:
+        return build_auth_handler(auth_cfg)
+
+    default_handler = build_auth_handler(auth_cfg) if needs_default else None
+    scheme_handlers: dict[str, httpx.Auth | None] = {"none": None}
+    for scheme_name in sorted(referenced_schemes):
+        sub_cfg = named_cfgs.get(scheme_name)
+        if not isinstance(sub_cfg, dict):
+            raise ManifestConfigError(
+                f"Tool references unknown auth_scheme '{scheme_name}' in forge-manifest.json"
+            )
+        scheme_handlers[scheme_name] = build_auth_handler(sub_cfg)
+
+    scored_overrides.sort(key=lambda item: -item[0])
+    ordered_overrides = [(m, pat, s) for _, m, pat, s in scored_overrides]
+
+    upstream = manifest.get("upstream", {})
+    base_url_env = str(upstream.get("base_url_env", ""))
+    effective_base_url = (
+        os.environ.get(base_url_env, "").strip() if base_url_env else ""
+    ) or str(upstream.get("default_base_url", ""))
+    base_path = urlparse(effective_base_url).path if effective_base_url else ""
+
+    return RouteDispatchAuth(
+        default_auth=default_handler,
+        scheme_handlers=scheme_handlers,
+        route_overrides=ordered_overrides,
+        base_path=base_path,
+    )

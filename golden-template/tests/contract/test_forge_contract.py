@@ -9,7 +9,7 @@ import pytest
 import respx
 from fastmcp import Client
 
-from src.auth import load_manifest
+from src.auth import iter_manifest_auth_env_vars, load_manifest
 from src.server import TOOLS_PROVIDER, mcp
 
 MCP_SPEC_NAME_RE = re.compile(r"^[A-Za-z0-9_.-]{1,128}$")
@@ -24,10 +24,8 @@ SENSITIVE_PARAM_RE = re.compile(
 @pytest.fixture(autouse=True)
 def _mock_manifest_env(monkeypatch: pytest.MonkeyPatch) -> None:
     manifest = load_manifest()
-    auth = manifest.get("auth", {})
-    for key, val in auth.items():
-        if key.endswith("_env") and isinstance(val, str):
-            monkeypatch.setenv(val, "test-dummy-credential-value")
+    for env_var in iter_manifest_auth_env_vars(manifest):
+        monkeypatch.setenv(env_var, "test-dummy-credential-value")
     base_url_env = manifest.get("upstream", {}).get("base_url_env")
     if base_url_env:
         monkeypatch.setenv(base_url_env, "https://api.test.internal/v1")

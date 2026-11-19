@@ -16,7 +16,11 @@ from pathlib import Path
 from typing import Any
 
 from forge.codegen import synthesize_workspace_code
-from forge.ingest_openapi import DEFAULT_MAX_OUTPUT_FIELDS, normalize_openapi_to_manifest
+from forge.ingest_openapi import (
+    DEFAULT_MAX_OUTPUT_FIELDS,
+    normalize_openapi_to_manifest,
+    plan_openapi_shards,
+)
 
 MAX_HEAL_ITERATIONS = 3
 
@@ -169,6 +173,8 @@ def stage_workspace(
                 "test_docs_alignment.py",
                 "test_schema_projection.py",
                 "test_host_agent_mode.py",
+                "test_per_op_auth.py",
+                "test_multi_shard.py",
             ),
         )
         (workspace_dir / ".venv").symlink_to((source_dir / ".venv").resolve())
@@ -410,8 +416,19 @@ def emit_stage5_packaging_artifacts(
     if base_url_env:
         required_envs.append(base_url_env)
     for key, val in manifest.get("auth", {}).items():
-        if key.endswith("_env") and isinstance(val, str):
+        if key.endswith("_env") and isinstance(val, str) and val not in required_envs:
             required_envs.append(val)
+    named_schemes = manifest.get("auth_schemes", {})
+    if isinstance(named_schemes, dict):
+        for sub_cfg in named_schemes.values():
+            if isinstance(sub_cfg, dict):
+                for key, val in sub_cfg.items():
+                    if (
+                        key.endswith("_env")
+                        and isinstance(val, str)
+                        and val not in required_envs
+                    ):
+                        required_envs.append(val)
 
     docker_args = ["run", "-i", "--rm"]
     for env_var in required_envs:
@@ -457,29 +474,17 @@ def emit_stage5_packaging_artifacts(
     return artifacts
 
 
-def run_forge_pipeline(
-    spec_path: Path,
-    server_name: str,
+def _execute_manifest_pipeline(
+    manifest: dict[str, Any],
     golden_template_dir: Path,
     system_prompt_path: Path,
     output_dir: Path,
     agent_image: str,
     validator_image: str,
-    registry_prefix: str = "ghcr.io/org",
-    tag_filter: str | None = None,
-    execution_mode: str = "docker",
-    agent_cmd: str = "",
-    max_output_fields: int = DEFAULT_MAX_OUTPUT_FIELDS,
+    registry_prefix: str,
+    execution_mode: str,
+    agent_cmd: str,
 ) -> dict[str, Any]:
-    """Run all 5 stages of the MCP Server Forge pipeline."""
-    print(f"[Stage 1] Normalizing {spec_path} -> forge-manifest.json ...", file=sys.stderr)
-    manifest = normalize_openapi_to_manifest(
-        spec_path,
-        server_name,
-        tag_filter=tag_filter,
-        max_output_fields=max_output_fields,
-    )
-
     print(
         f"[Stage 2] Scaffolding locked FastMCP 4.x Golden Template in {output_dir} ...",
         file=sys.stderr,
@@ -528,9 +533,119 @@ def run_forge_pipeline(
         "[Stage 5] Emitting deployment snippets & PR governance report ...",
         file=sys.stderr,
     )
-    artifacts = emit_stage5_packaging_artifacts(output_dir, manifest, registry_prefix)
+    return emit_stage5_packaging_artifacts(output_dir, manifest, registry_prefix)
+
+
+def run_forge_pipeline(
+    spec_path: Path,
+    server_name: str,
+    golden_template_dir: Path,
+    system_prompt_path: Path,
+    output_dir: Path,
+    agent_image: str,
+    validator_image: str,
+    registry_prefix: str = "ghcr.io/org",
+    tag_filter: str | None = None,
+    execution_mode: str = "docker",
+    agent_cmd: str = "",
+    max_output_fields: int = DEFAULT_MAX_OUTPUT_FIELDS,
+) -> dict[str, Any]:
+    """Run all 5 stages of the MCP Server Forge pipeline."""
+    print(f"[Stage 1] Normalizing {spec_path} -> forge-manifest.json ...", file=sys.stderr)
+    manifest = normalize_openapi_to_manifest(
+        spec_path,
+        server_name,
+        tag_filter=tag_filter,
+        max_output_fields=max_output_fields,
+    )
+    artifacts = _execute_manifest_pipeline(
+        manifest=manifest,
+        golden_template_dir=golden_template_dir,
+        system_prompt_path=system_prompt_path,
+        output_dir=output_dir,
+        agent_image=agent_image,
+        validator_image=validator_image,
+        registry_prefix=registry_prefix,
+        execution_mode=execution_mode,
+        agent_cmd=agent_cmd,
+    )
     print(json.dumps(artifacts, indent=2))
     return artifacts
+
+
+def run_sharded_forge_pipeline(
+    spec_path: Path,
+    server_name: str,
+    golden_template_dir: Path,
+    system_prompt_path: Path,
+    output_dir: Path,
+    agent_image: str,
+    validator_image: str,
+    registry_prefix: str = "ghcr.io/org",
+    execution_mode: str = "docker",
+    agent_cmd: str = "",
+    max_output_fields: int = DEFAULT_MAX_OUTPUT_FIELDS,
+) -> dict[str, Any]:
+    """Partition an OpenAPI spec by tag into <=15-tool shards and forge every shard."""
+    print(f"[Stage 1] Planning domain shards for {spec_path} ...", file=sys.stderr)
+    shard_manifests = plan_openapi_shards(
+        spec_path=spec_path,
+        base_server_name=server_name,
+        max_output_fields=max_output_fields,
+    )
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    merged_mcp_servers: dict[str, Any] = {}
+    shard_reports: list[dict[str, Any]] = []
+    all_mutating: list[dict[str, Any]] = []
+    total_tools = 0
+
+    for shard_manifest in shard_manifests:
+        s_name = str(shard_manifest["server_name"])
+        shard_dir = output_dir / s_name
+        shard_art = _execute_manifest_pipeline(
+            manifest=shard_manifest,
+            golden_template_dir=golden_template_dir,
+            system_prompt_path=system_prompt_path,
+            output_dir=shard_dir,
+            agent_image=agent_image,
+            validator_image=validator_image,
+            registry_prefix=registry_prefix,
+            execution_mode=execution_mode,
+            agent_cmd=agent_cmd,
+        )
+        merged_mcp_servers.update(shard_art["client_config"]["mcpServers"])
+        gov = shard_art["governance"]
+        all_mutating.extend(gov["mutating_tools"])
+        total_tools += int(gov["total_tools"])
+        shard_reports.append(
+            {
+                "server_name": s_name,
+                "workspace": shard_dir.name,
+                "container_image": shard_art["container_image"],
+                "tool_count": gov["total_tools"],
+            }
+        )
+
+    suite_artifacts: dict[str, Any] = {
+        "protocol_revision": "2026-07-28",
+        "suite_name": server_name,
+        "total_shards": len(shard_reports),
+        "shards": shard_reports,
+        "client_config": {"mcpServers": merged_mcp_servers},
+        "governance": {
+            "required_labels": ["needs-security-review", "mcp-2026-07-28"],
+            "requires_appsec_destructive_signoff": any(
+                t["destructiveHint"] for t in all_mutating
+            ),
+            "mutating_tools": all_mutating,
+            "total_tools": total_tools,
+        },
+    }
+    suite_path = output_dir / "forge-suite-artifacts.json"
+    suite_path.write_text(json.dumps(suite_artifacts, indent=2) + "\n", encoding="utf-8")
+    print(json.dumps(suite_artifacts, indent=2))
+    return suite_artifacts
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -564,6 +679,11 @@ def main(argv: list[str] | None = None) -> None:
         help="Host CLI command for --execution-mode agent ({prompt_file}, {workspace})",
     )
     parser.add_argument(
+        "--auto-split-tags",
+        action="store_true",
+        help="Automatically partition >15-tool specs by OpenAPI tag into <=15-tool shards",
+    )
+    parser.add_argument(
         "--local",
         action="store_true",
         help="Shorthand for --execution-mode local",
@@ -571,20 +691,35 @@ def main(argv: list[str] | None = None) -> None:
     args = parser.parse_args(argv)
     mode = "local" if args.local else args.execution_mode
 
-    run_forge_pipeline(
-        spec_path=args.spec,
-        server_name=args.name,
-        golden_template_dir=args.template_dir,
-        system_prompt_path=args.prompt_file,
-        output_dir=args.output_dir,
-        agent_image=args.agent_image,
-        validator_image=args.validator_image,
-        registry_prefix=args.registry_prefix,
-        tag_filter=args.tag_filter,
-        execution_mode=mode,
-        agent_cmd=args.agent_cmd,
-        max_output_fields=args.max_output_fields,
-    )
+    if args.auto_split_tags:
+        run_sharded_forge_pipeline(
+            spec_path=args.spec,
+            server_name=args.name,
+            golden_template_dir=args.template_dir,
+            system_prompt_path=args.prompt_file,
+            output_dir=args.output_dir,
+            agent_image=args.agent_image,
+            validator_image=args.validator_image,
+            registry_prefix=args.registry_prefix,
+            execution_mode=mode,
+            agent_cmd=args.agent_cmd,
+            max_output_fields=args.max_output_fields,
+        )
+    else:
+        run_forge_pipeline(
+            spec_path=args.spec,
+            server_name=args.name,
+            golden_template_dir=args.template_dir,
+            system_prompt_path=args.prompt_file,
+            output_dir=args.output_dir,
+            agent_image=args.agent_image,
+            validator_image=args.validator_image,
+            registry_prefix=args.registry_prefix,
+            tag_filter=args.tag_filter,
+            execution_mode=mode,
+            agent_cmd=args.agent_cmd,
+            max_output_fields=args.max_output_fields,
+        )
 
 
 if __name__ == "__main__":

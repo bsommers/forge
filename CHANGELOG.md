@@ -4,6 +4,17 @@ All notable changes to **MCP Server Forge** are documented in this file.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.3.0] - 2026-11-18
+
+### Added
+- **Milestone M3 — Per-Operation OpenAPI Security Overrides (`src/auth.py`, `forge/ingest_openapi.py`):**
+  - Extracts all declared `components.securitySchemes` along with root and per-operation `security` overrides (including unauthenticated `security: []` endpoints and per-operation OAuth2 scope profiles).
+  - Adds `RouteDispatchAuth(httpx.Auth)` in `src/auth.py` (and `golden-template/src/auth.py`) to dispatch server-bound credentials per `(method, path)` or `forge_auth_scheme` request extension over the shared lifespan `httpx.AsyncClient` pool.
+- **Milestone M3 — Automated Multi-Tag Suite Sharding (`forge/ingest_openapi.py`, `forge/orchestrator.py`):**
+  - Adds `plan_openapi_shards()`, `run_sharded_forge_pipeline()`, and `--auto-split-tags` CLI flag to partition large (`> 15`-operation) OpenAPI specs by tag (and `<= 15`-tool chunks) into verified sub-servers with a unified `forge-suite-artifacts.json` `mcpServers` bundle and per-shard pruned `auth_schemes`.
+- **Hardened GitHub Actions CI & GitHub Pages Deployment (`.github/workflows/ci.yml`, `.github/workflows/pages.yml`):**
+  - Added SHA-pinned, least-privilege (`permissions: contents: read`, `persist-credentials: false`, `cancel-in-progress: true`) 5-gate CI verification and automated GitHub Pages deployment for `docs/index.html`.
+
 ## [v1.2.0] - 2026-11-18
 
 ### Added

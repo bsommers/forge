@@ -44,6 +44,7 @@ Stages 1–5 end-to-end self-healing orchestrator.
 | `--max-output-fields` | `int` | No | `8` | Maximum high-signal fields projected per tool `outputSchema` (`1..20`) |
 | `--execution-mode` | `docker\|local\|agent` | No | `docker` | `docker` (containers), `local` (deterministic projection), or `agent` (host CLI + SHA-256 lock guard) |
 | `--agent-cmd` | `str` | No | `""` | Host CLI command template for `--execution-mode agent` (`{prompt_file}`, `{workspace}`) |
+| `--auto-split-tags` | `bool` | No | `False` | Partition `> 15`-tool OpenAPI specs by tag into `<= 15`-tool server shards + `forge-suite-artifacts.json` |
 | `--local` | `bool` | No | `False` | Shorthand alias for `--execution-mode local` |
 | `--agent-image` | `str` | No | `mcp-forge-agent:latest` | Docker image for Stage 3 coding agent |
 | `--validator-image` | `str` | No | `mcp-forge-validator:latest` | Docker image for `--network=none` Stage 4 validation |

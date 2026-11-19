@@ -15,7 +15,7 @@ if str(ROOT) not in sys.path:
 from fastmcp import Client  # noqa: E402
 from fastmcp.client.transports import PythonStdioTransport  # noqa: E402
 
-from src.auth import load_manifest  # noqa: E402
+from src.auth import iter_manifest_auth_env_vars, load_manifest  # noqa: E402
 
 TOOLS_DIR = ROOT / "src" / "tools"
 
@@ -107,9 +107,8 @@ async def verify_stdio_protocol_2026_07_28() -> None:
     env = dict(os.environ)
     env["MCP_TRANSPORT"] = "stdio"
     env["PYTHONPATH"] = str(ROOT)
-    for key, val in manifest.get("auth", {}).items():
-        if key.endswith("_env") and isinstance(val, str):
-            env[val] = "stdio-validation-dummy-secret"
+    for env_var in iter_manifest_auth_env_vars(manifest):
+        env[env_var] = "stdio-validation-dummy-secret"
 
     transport = PythonStdioTransport(
         script_path=str(ROOT / "src" / "server.py"),

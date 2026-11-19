@@ -126,13 +126,14 @@ When an OpenAPI specification defines more than 15 operations, split it by OpenA
   --tag-filter invoices \
   --output /tmp/invoices-manifest.json
 
-# Forge the 'invoices' MCP server end-to-end
+# Or automatically partition an entire multi-tag (>15-tool) OpenAPI spec into verified domain shards:
 .venv/bin/python -m forge.orchestrator \
   --spec spec/cloud-billing.openapi.json \
-  --name cloud-billing-invoices \
-  --tag-filter invoices \
-  --output-dir /tmp/forged-invoices \
+  --name cloud-billing \
+  --output-dir /tmp/forged-billing-suite \
+  --auto-split-tags \
   --local
+# Emits /tmp/forged-billing-suite/forge-suite-artifacts.json with merged mcpServers config
 ```
 
 ---

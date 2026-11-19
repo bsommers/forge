@@ -257,10 +257,11 @@ def render_tool_module(tool_spec: dict[str, Any]) -> str:
     params = _collect_tool_params(tool_spec)
     projection = _projection_for_tool(tool_spec)
 
+    typing_import = "from typing import Annotated, Any" if params else "from typing import Any"
     lines: list[str] = [
         "from __future__ import annotations",
         "",
-        "from typing import Annotated, Any",
+        typing_import,
         "",
         "from fastmcp.tools import tool",
         "from mcp.types import ToolAnnotations",
@@ -528,16 +529,15 @@ def render_unit_tests(manifest: dict[str, Any]) -> str:
         "from fastmcp import Client",
         "from fastmcp.exceptions import ToolError",
         "",
-        "from src.auth import load_manifest",
+        "from src.auth import iter_manifest_auth_env_vars, load_manifest",
         "from src.server import mcp",
         "",
         "",
         "@pytest.fixture(autouse=True)",
         "def _seed_test_env(monkeypatch: pytest.MonkeyPatch) -> None:",
         "    manifest = load_manifest()",
-        '    for key, val in manifest.get("auth", {}).items():',
-        '        if key.endswith("_env") and isinstance(val, str):',
-        '            monkeypatch.setenv(val, "test-secret-token")',
+        "    for env_var in iter_manifest_auth_env_vars(manifest):",
+        '        monkeypatch.setenv(env_var, "test-secret-token")',
         '    base_url_env = manifest.get("upstream", {}).get("base_url_env")',
         "    if base_url_env:",
         '        monkeypatch.setenv(base_url_env, "https://api.test.internal/v1")',
@@ -634,8 +634,15 @@ def render_readme(manifest: dict[str, Any]) -> str:
 
     env_vars = [base_url_env]
     for k, v in manifest.get("auth", {}).items():
-        if k.endswith("_env") and isinstance(v, str):
+        if k.endswith("_env") and isinstance(v, str) and v not in env_vars:
             env_vars.append(v)
+    named_schemes = manifest.get("auth_schemes", {})
+    if isinstance(named_schemes, dict):
+        for sub_cfg in named_schemes.values():
+            if isinstance(sub_cfg, dict):
+                for k, v in sub_cfg.items():
+                    if k.endswith("_env") and isinstance(v, str) and v not in env_vars:
+                        env_vars.append(v)
 
     tool_rows = [
         f"| `{t['name']}` | `{t['method']} {t['path']}` | {t['description']} |"
