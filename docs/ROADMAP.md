@@ -15,9 +15,9 @@ flowchart LR
     M0["M0: v1.0.0 (done)\n5-Stage Pipeline + 5 Gates"] --> M1["M1: v1.1.0 (done)\nHigh-Signal Projection"]
     M1 --> M2["M2: v1.2.0 (done)\nHost-Agent + SHA-256 Lock"]
     M2 --> M3["M3: v1.3.0 (done)\nPer-Op Auth + Auto-Split"]
-    M3 --> M35["M3.5: Research Spike (open — NEXT)\nNIST 800-53r5 + COSIS Attestation"]
-    M35 --> M4["M4: v1.4.0 (open)\nWild OpenAPI + Dual-Axis Bounds"]
-    M4 --> M5["M5: v2.0.0 (open)\nComposite Workflows + OS Sandbox"]
+    M3 --> M35["M3.5: Spike (done)\nStage 5 --emit-oscal"]
+    M35 --> M4["M4: v1.4.0 (done)\nWild OpenAPI + Dual-Axis Bounds"]
+    M4 --> M5["M5: v2.0.0 (open — NEXT)\nComposite Workflows + OS Sandbox"]
 ```
 
 ---
@@ -30,8 +30,8 @@ flowchart LR
 | **M1** | `v1.1.0` | `done` | **High-Signal Response Schema Projection in `--local` Mode** — Trim 100-field OpenAPI responses down to top-`N` typed fields (`--max-output-fields`) & list/cursor envelopes without raw `data: dict[str, Any]` dumps | `.venv/bin/python -m pytest tests/forge/test_schema_projection.py -q && .venv/bin/python scripts/validate_mcp.py` |
 | **M2** | `v1.2.0` | `done` | **Docker-Free Host-Agent Semantic Refinement (`--execution-mode agent`)** — Pair deterministic `--local` scaffolding with a host CLI coding agent (`--agent-cmd`) guarded by `0444` locks + SHA-256 tamper checks | `.venv/bin/python -m pytest tests/forge/test_host_agent_mode.py -q && .venv/bin/python scripts/validate_mcp.py` |
 | **M3** | `v1.3.0` | `done` | **Per-Operation Auth Overrides, Multi-Tag Suite Sharding (`--auto-split-tags`) & Hardened CI/Pages** — `RouteDispatchAuth` per-tool auth routing, automatic `<= 15`-tool sharding, and SHA-pinned GitHub Actions CI + Pages | `.venv/bin/python -m pytest tests/forge/test_per_op_auth.py tests/forge/test_multi_shard.py -q && .venv/bin/python scripts/validate_mcp.py` |
-| **M3.5 (Next)** | `Spike` | `open` | **Research Spike: NIST SP 800-53r5 Update 1 & COSIS Use-Case Control Attestation** — Bridge [`bsommers/security-controls`](https://github.com/bsommers/security-controls) (`UC-GEN`, `UC-PRED`, `UC-AGENT-SINGLE`, `UC-AGENT-MULTI`, `UC-DEV`) with Stage 5 deterministic OSCAL `1.1.2` attestation | `.venv/bin/python scripts/validate_mcp.py` |
-| **M4** | `v1.4.0` | `open` | **Wild OpenAPI Resilience & Dual-Axis Payload Bounding** — Cycle-safe/relative `$ref`s (`MCP-004`), `allOf`/`oneOf` + data-carrier projection, typed `requestBody` models, and list-cardinality + byte bounding in `ForgeResponseLimitingMiddleware` (`MCP-003`) | `.venv/bin/python -m pytest tests/forge/ tests/unit/ -q && .venv/bin/python scripts/validate_mcp.py` |
+| **M3.5** | `v1.4.0` | `done` | **NIST SP 800-53r5 Update 1 & COSIS Stage 5 OSCAL Attestation (`--emit-oscal`)** — Emit deterministic OSCAL `1.1.2` `SSP`, `SAR`, `POA&M`, and `SSP.md` grounded in [`bsommers/security-controls`](https://github.com/bsommers/security-controls) & [`bsommers/security-assurance`](https://github.com/bsommers/security-assurance) | `.venv/bin/python -m pytest tests/forge/test_m4_resilience_and_oscal.py -q` |
+| **M4** | `v1.4.0` | `done` | **Wild OpenAPI Resilience & Dual-Axis Payload Bounding** — Cycle-safe/relative `$ref`s (`MCP-004`), `allOf`/`oneOf` + data-carrier projection, typed `requestBody` models, and list-cardinality + byte bounding in `ForgeResponseLimitingMiddleware` (`MCP-003`, closing `POAM-FORGE-W4.4`) | `.venv/bin/python -m pytest tests/forge/test_m4_resilience_and_oscal.py -q && .venv/bin/python scripts/validate_mcp.py` |
 | **M5** | `v2.0.0` | `open` | **Composite Intent Workflows, Active Toolset Budgets & Kernel Sandboxing** — Multi-endpoint `x-mcp-workflows` server-side joins (`MCP-005`), `<= 15`-tool client profiles, OS `sandbox-exec`/`bwrap` host isolation (`MCP-008`), and recorded fixture replay | `.venv/bin/python -m pytest -q && .venv/bin/python scripts/validate_mcp.py` |
 
 ---

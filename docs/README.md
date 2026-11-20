@@ -22,12 +22,14 @@ docs/
 ├── PURPOSE.md                        # Problem statement, threat model, goals & trade-offs
 ├── ARCHITECTURE.md                   # 5-stage pipeline, runtime internals, Mermaid & ASCII models
 ├── SECURE_DESIGN_PATTERNS.md         # 8 MCP 2026-07-28 secure design patterns (MCP-001..MCP-008)
+├── ECOSYSTEM_VALUE_AND_RELEVANCE.md  # Strategic value & candid limits of the 4-repo ATO stack
 ├── HOWTO.md                          # Task-oriented operational recipes & debugging guide
 ├── ROADMAP.md                        # Milestone roadmap (M0-M5) & gap matrix
 ├── plans/                            # Contract-first implementation plans
 │   ├── 01-high-signal-codegen-and-agent-refinement.md
 │   ├── 02-per-operation-auth-and-multi-tag-sharding.md
-│   └── 03-wild-openapi-resilience-composite-tools-and-hardened-bounds.md
+│   ├── 03-wild-openapi-resilience-composite-tools-and-hardened-bounds.md
+│   └── 04-research-spike-nist-800-53-cosis-attestation.md
 ├── brochure.md                       # Executive stakeholder showcase with Khazad-dûm visuals
 ├── assets/                           # Khazad-dûm Dwarven Forge SVG + PNG graphics & illustrations
 │   ├── logo.{svg,png}                # 1200x380 Forge hero banner

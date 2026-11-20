@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import json
 import logging
 import os
@@ -11,6 +12,7 @@ from typing import TYPE_CHECKING, Any
 import httpx
 import pydantic_core
 from fastmcp import FastMCP
+from fastmcp.exceptions import ToolError
 from fastmcp.server.lifespan import lifespan
 from fastmcp.server.middleware.response_limiting import ResponseLimitingMiddleware
 from fastmcp.server.providers import FileSystemProvider
@@ -54,6 +56,45 @@ configure_stderr_logging()
 logger = logging.getLogger("forged_mcp")
 
 
+def _wire_json_len(value: Any) -> int:
+    """Measure conservative ensure_ascii=True wire length (prevents \\uXXXX surrogate blowups)."""
+    return len(json.dumps(value, ensure_ascii=True, separators=(",", ":")).encode("utf-8"))
+
+
+def _slice_lists_proportionally(node: Any, keep_ratio: float) -> tuple[Any, bool]:
+    """Slice list cardinalities while keeping >= 1 element on non-empty lists for outputSchema."""
+    sliced_any = False
+    if isinstance(node, list):
+        if len(node) > 1:
+            target_len = max(1, int(len(node) * keep_ratio))
+            if target_len < len(node):
+                node = node[:target_len]
+                sliced_any = True
+        new_items: list[Any] = []
+        for item in node:
+            updated_item, child_sliced = _slice_lists_proportionally(item, keep_ratio)
+            new_items.append(updated_item)
+            sliced_any = sliced_any or child_sliced
+        return new_items, sliced_any
+
+    if isinstance(node, dict):
+        out: dict[str, Any] = {}
+        for k, v in node.items():
+            updated_v, child_sliced = _slice_lists_proportionally(v, keep_ratio)
+            out[k] = updated_v
+            sliced_any = sliced_any or child_sliced
+        if sliced_any:
+            if "truncated" in out and isinstance(out["truncated"], bool):
+                out["truncated"] = True
+            if "total_returned" in out and isinstance(out["total_returned"], int):
+                list_vals = [v for v in out.values() if isinstance(v, list)]
+                if len(list_vals) == 1:
+                    out["total_returned"] = len(list_vals[0])
+        return out, sliced_any
+
+    return node, False
+
+
 def _truncate_structured_strings(value: Any, max_str_bytes: int, suffix: str) -> Any:
     """Recursively bound string values inside structuredContent while preserving schema types."""
     if isinstance(value, str):
@@ -73,8 +114,58 @@ def _truncate_structured_strings(value: Any, max_str_bytes: int, suffix: str) ->
     return value
 
 
+def bound_structured_content(
+    payload: dict[str, Any],
+    *,
+    budget_bytes: int,
+    suffix: str = " ...[truncated]",
+) -> dict[str, Any]:
+    """Dual-axis structured payload bounding (Pattern MCP-003 / NIST SC-5).
+
+    Pass 1 (Cardinality Axis): Binary-search list slicing (defeats 3,000-item short-ID bypass).
+    Pass 2 (String Byte Axis): Proportional UTF-8 string truncation on character boundaries.
+    Pass 3 (Fail-Closed Guard): Raise ToolError if irreducible scalars still exceed budget_bytes.
+    """
+    current = copy.deepcopy(payload)
+    if _wire_json_len(current) <= budget_bytes:
+        return current
+
+    low, high = 0.0, 1.0
+    best_sliced: dict[str, Any] | None = None
+    for _ in range(14):
+        mid = (low + high) / 2.0
+        candidate, did_slice = _slice_lists_proportionally(current, mid)
+        if not did_slice and mid < 0.01:
+            break
+        if isinstance(candidate, dict) and _wire_json_len(candidate) <= budget_bytes:
+            best_sliced = candidate
+            low = mid
+        else:
+            high = mid
+
+    if best_sliced is not None:
+        return best_sliced
+
+    min_sliced, _ = _slice_lists_proportionally(current, 0.0)
+    current = dict(min_sliced)
+    if _wire_json_len(current) <= budget_bytes:
+        return current
+
+    str_limit = max(64, budget_bytes // 2)
+    while str_limit >= 16:
+        str_candidate = _truncate_structured_strings(current, str_limit, suffix)
+        if isinstance(str_candidate, dict) and _wire_json_len(str_candidate) <= budget_bytes:
+            return str_candidate
+        str_limit //= 2
+
+    raise ToolError(
+        f"Upstream structured response exceeded {budget_bytes}-byte safety budget after "
+        "collection slicing and string bounding; narrow query filters or reduce limit."
+    )
+
+
 class ForgeResponseLimitingMiddleware(ResponseLimitingMiddleware):
-    """Preserves MCP 2026-07-28 outputSchema while bounding oversized tool payloads."""
+    """Preserves MCP 2026-07-28 outputSchema while dual-axis bounding oversized tool payloads."""
 
     async def on_list_tools(
         self,
@@ -100,7 +191,7 @@ class ForgeResponseLimitingMiddleware(ResponseLimitingMiddleware):
             return result
 
         logger.warning(
-            "Tool %r response exceeds size limit (%d > %d bytes); truncating structured fields",
+            "Tool %r response exceeds size limit (%d > %d bytes); applying dual-axis bounding",
             context.message.name,
             len(serialized),
             self.max_size,
@@ -109,30 +200,14 @@ class ForgeResponseLimitingMiddleware(ResponseLimitingMiddleware):
         if isinstance(result.structured_content, dict):
             # Budget half of max_size for structured_content and half for TextContent JSON mirror
             budget = max(256, (self.max_size - 256) // 2)
-            str_limit = max(64, budget // 2)
-            truncated_sc: dict[str, Any] = result.structured_content
-            while str_limit >= 16:
-                candidate = _truncate_structured_strings(
-                    result.structured_content,
-                    str_limit,
-                    " ...[truncated]",
-                )
-                if isinstance(candidate, dict):
-                    truncated_sc = candidate
-                text_json = json.dumps(truncated_sc)
-                if len(text_json.encode("utf-8")) <= budget:
-                    return ToolResult(
-                        content=[TextContent(type="text", text=text_json)],
-                        structured_content=truncated_sc,
-                        meta=result.meta,
-                        is_error=result.is_error,
-                    )
-                str_limit //= 2
-
-            text_json = json.dumps(truncated_sc)
+            bounded_sc = bound_structured_content(
+                result.structured_content,
+                budget_bytes=budget,
+            )
+            text_json = json.dumps(bounded_sc, separators=(",", ":"))
             return ToolResult(
                 content=[TextContent(type="text", text=text_json)],
-                structured_content=truncated_sc,
+                structured_content=bounded_sc,
                 meta=result.meta,
                 is_error=result.is_error,
             )

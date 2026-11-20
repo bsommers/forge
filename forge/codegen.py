@@ -7,7 +7,12 @@ import re
 from pathlib import Path
 from typing import Any
 
-from forge.projection import ProjectedField, ResponseProjection, project_response_schema
+from forge.projection import (
+    ProjectedField,
+    ResponseProjection,
+    flatten_composed_schema,
+    project_response_schema,
+)
 
 SENSITIVE_PARAM_RE = re.compile(
     r"(password|passwd|secret|token|api_?key|authorization|credential|ssn)",
@@ -64,6 +69,38 @@ def _collect_tool_params(tool_spec: dict[str, Any]) -> list[dict[str, Any]]:
             }
         )
 
+    body_schema = tool_spec.get("request_body_schema")
+    if isinstance(body_schema, dict):
+        flat_body = flatten_composed_schema(body_schema)
+        body_req_raw = {str(r) for r in flat_body.get("required", []) if isinstance(r, str)}
+        props = flat_body.get("properties", {})
+        if isinstance(props, dict):
+            for prop_name, prop_schema in props.items():
+                snake_name = re.sub(r"[^a-z0-9]+", "_", prop_name.lower()).strip("_")
+                if not snake_name or snake_name in seen or snake_name == "client":
+                    continue
+                seen.add(snake_name)
+                p_schema = (
+                    flatten_composed_schema(prop_schema)
+                    if isinstance(prop_schema, dict)
+                    else {"type": "string"}
+                )
+                desc = _sanitize_docstring(
+                    str(p_schema.get("description") or f"Body field {snake_name}.")
+                )
+                is_body_req = snake_name in required_names or str(prop_name) in body_req_raw
+                normalized.append(
+                    {
+                        "name": snake_name,
+                        "wire_name": str(prop_name),
+                        "in": "body",
+                        "required": is_body_req,
+                        "description": desc,
+                        "schema": p_schema,
+                        "x-mcp-header": None,
+                    }
+                )
+
     for req_name in required_names:
         if req_name not in seen and req_name != "client":
             seen.add(req_name)
@@ -80,51 +117,138 @@ def _collect_tool_params(tool_spec: dict[str, Any]) -> list[dict[str, Any]]:
                 }
             )
 
-    body_schema = tool_spec.get("request_body_schema")
-    if isinstance(body_schema, dict):
-        props = body_schema.get("properties", {})
-        if isinstance(props, dict):
-            for prop_name, prop_schema in props.items():
-                snake_name = re.sub(r"[^a-z0-9]+", "_", prop_name.lower()).strip("_")
-                if not snake_name or snake_name in seen or snake_name == "client":
-                    continue
-                seen.add(snake_name)
-                p_schema = prop_schema if isinstance(prop_schema, dict) else {"type": "string"}
-                desc = _sanitize_docstring(
-                    str(p_schema.get("description") or f"Body field {snake_name}.")
-                )
-                normalized.append(
-                    {
-                        "name": snake_name,
-                        "wire_name": str(prop_name),
-                        "in": "body",
-                        "required": snake_name in required_names,
-                        "description": desc,
-                        "schema": p_schema,
-                        "x-mcp-header": None,
-                    }
-                )
-
     req_list = [p for p in normalized if p["required"]]
     opt_list = [p for p in normalized if not p["required"]]
     return [*req_list, *opt_list]
 
 
-def _python_type_and_default(param: dict[str, Any]) -> tuple[str, str | None, Any]:
+def _nested_input_model_info(
+    tool_pascal: str, param: dict[str, Any]
+) -> tuple[str, list[str], dict[str, Any]] | None:
+    """Return (ModelName, class_lines, sample_dict) when a body param is a typed object."""
+    if param.get("in") != "body":
+        return None
     schema = param.get("schema")
-    schema_type = str(schema.get("type", "string")) if isinstance(schema, dict) else "string"
+    if not isinstance(schema, dict):
+        return None
+    flat = flatten_composed_schema(schema)
+    props = flat.get("properties")
+    if not isinstance(props, dict) or not props:
+        return None
+
+    model_name = f"{tool_pascal}{_to_pascal_case(str(param['name']))}Input"
+    req_set = {str(r) for r in flat.get("required", []) if isinstance(r, str)}
+    lines = [
+        f"class {model_name}(BaseModel):",
+        f'    """Structured input object for {param["name"]}."""',
+        "",
+    ]
+    sample: dict[str, Any] = {}
+    used: set[str] = set()
+    for raw_k, raw_v in props.items():
+        sub_name = re.sub(r"[^a-z0-9]+", "_", str(raw_k).lower()).strip("_")
+        if not sub_name or not sub_name[0].isalpha() or sub_name in used:
+            continue
+        used.add(sub_name)
+        sub_s = flatten_composed_schema(raw_v) if isinstance(raw_v, dict) else {"type": "string"}
+        st = str(sub_s.get("type", "string"))
+        is_sub_req = str(raw_k) in req_set
+        s_val: Any
+        if st == "integer":
+            f_type, def_r, s_val = ("int", "0", 1) if is_sub_req else ("int | None", "None", 1)
+        elif st == "number":
+            f_type, def_r, s_val = (
+                ("float", "0.0", 1.5) if is_sub_req else ("float | None", "None", 1.5)
+            )
+        elif st == "boolean":
+            f_type, def_r, s_val = (
+                ("bool", "False", True) if is_sub_req else ("bool | None", "None", True)
+            )
+        else:
+            f_type, def_r, s_val = (
+                ("str", '""', "val-1") if is_sub_req else ("str | None", "None", "val-1")
+            )
+        desc_j = json.dumps(_sanitize_docstring(str(sub_s.get("description") or f"Field {raw_k}.")))
+        if is_sub_req:
+            lines.append(f"    {sub_name}: {f_type} = Field(description={desc_j})")
+        else:
+            lines.append(
+                f"    {sub_name}: {f_type} = Field(default={def_r}, description={desc_j})"
+            )
+        sample[sub_name] = s_val
+
+    if not used:
+        return None
+    lines.extend(["", ""])
+    return (model_name, lines, sample)
+
+
+def _python_type_and_default(
+    param: dict[str, Any], tool_pascal: str = "Tool"
+) -> tuple[str, str | None, Any]:
+    raw_schema = param.get("schema")
+    schema = flatten_composed_schema(raw_schema) if isinstance(raw_schema, dict) else {}
+    raw_t = schema.get("type", "string")
+    if isinstance(raw_t, list):
+        non_null = [t for t in raw_t if t != "null"]
+        schema_type = str(non_null[0]) if non_null else "string"
+    else:
+        schema_type = str(raw_t or "string")
+
     is_req = bool(param.get("required", False))
     has_header = bool(param.get("x-mcp-header"))
+
+    nested_info = _nested_input_model_info(tool_pascal, param)
+    if nested_info is not None:
+        m_name, _, m_sample = nested_info
+        if is_req:
+            return (m_name, None, m_sample)
+        return (f"{m_name} | None", "None", m_sample)
 
     if schema_type == "integer":
         py_type = "int"
         default_repr = None if is_req else "25"
         sample_val: Any = 1
+    elif schema_type == "number":
+        if is_req:
+            py_type, default_repr = "float", None
+        else:
+            py_type, default_repr = ("float", "0.0") if has_header else ("float | None", "None")
+        sample_val = 12.5
     elif schema_type == "boolean":
         py_type = "bool"
         default_repr = None if is_req else "False"
         sample_val = True
+    elif schema_type == "array" and not has_header:
+        items = schema.get("items")
+        item_t = str(items.get("type", "string")) if isinstance(items, dict) else "string"
+        if item_t == "integer":
+            elem_t, sample_val = "int", [1]
+        elif item_t == "number":
+            elem_t, sample_val = "float", [1.5]
+        elif item_t == "boolean":
+            elem_t, sample_val = "bool", [True]
+        else:
+            elem_t, sample_val = "str", ["tag-1"]
+        if is_req:
+            py_type, default_repr = f"list[{elem_t}]", None
+        else:
+            py_type, default_repr = f"list[{elem_t}] | None", "None"
     else:
+        raw_enum = schema.get("enum")
+        if (
+            isinstance(raw_enum, list)
+            and 1 <= len(raw_enum) <= 12
+            and all(isinstance(e, str) and e for e in raw_enum)
+            and not has_header
+        ):
+            lit_inner = ", ".join(json.dumps(str(e)) for e in raw_enum)
+            lit_type = f"Literal[{lit_inner}]"
+            sample_val = str(raw_enum[0])
+            if is_req:
+                return (lit_type, None, sample_val)
+            return (f"{lit_type} | None", "None", sample_val)
+
         py_type = "str"
         if is_req:
             default_repr = None
@@ -154,6 +278,13 @@ def _projection_for_tool(tool_spec: dict[str, Any]) -> ResponseProjection:
 
 def _render_field_decl(pf: ProjectedField) -> list[str]:
     desc_json = json.dumps(_sanitize_docstring(pf.description)[:64])
+    if pf.default_repr == "[]":
+        return [
+            f"    {pf.py_name}: {pf.py_type} = Field(",
+            "        default_factory=list,",
+            f"        description={desc_json},",
+            "    )",
+        ]
     return [
         f"    {pf.py_name}: {pf.py_type} = Field(",
         f"        default={pf.default_repr},",
@@ -169,6 +300,16 @@ def _render_value_expr(pf: ProjectedField, src_var: str) -> str:
         k0, k1 = pf.source_path[0], pf.source_path[1]
         raw_expr = f"_nested_get({src_var}, {json.dumps(k0)}, {json.dumps(k1)})"
 
+    if pf.py_type == "list[str]":
+        return f"_as_str_list({raw_expr})"
+    if pf.py_type == "list[int]":
+        return f"_as_int_list({raw_expr})"
+    if pf.py_type == "list[float]":
+        return f"_as_float_list({raw_expr})"
+    if pf.py_type == "list[bool]":
+        return f"_as_bool_list({raw_expr})"
+    if pf.py_type == "list[dict[str, Any]]":
+        return f"_as_dict_list({raw_expr})"
     if pf.py_type == "str":
         return f"str({raw_expr} or {pf.default_repr})"
     if pf.py_type == "int":
@@ -187,14 +328,73 @@ def _render_value_expr(pf: ProjectedField, src_var: str) -> str:
     return f"_opt_bool({raw_expr})"
 
 
-def _helper_functions_needed(fields: tuple[ProjectedField, ...]) -> list[str]:
+def _helper_functions_needed(
+    fields: tuple[ProjectedField, ...], *, has_nested_body: bool = False
+) -> list[str]:
     helpers: list[str] = []
+    if has_nested_body:
+        helpers.extend(
+            [
+                "def _dump_body(val: Any) -> Any:",
+                "    if isinstance(val, BaseModel):",
+                "        return val.model_dump(exclude_none=True)",
+                "    return val",
+                "",
+                "",
+            ]
+        )
     if any(len(f.source_path) > 1 for f in fields):
         helpers.extend(
             [
                 "def _nested_get(d: dict[str, Any], k0: str, k1: str) -> Any:",
                 "    sub = d.get(k0)",
                 "    return sub.get(k1) if isinstance(sub, dict) else None",
+                "",
+                "",
+            ]
+        )
+    if any(f.py_type == "list[str]" for f in fields):
+        helpers.extend(
+            [
+                "def _as_str_list(val: Any) -> list[str]:",
+                "    return [str(x) for x in val] if isinstance(val, list) else []",
+                "",
+                "",
+            ]
+        )
+    if any(f.py_type == "list[int]" for f in fields):
+        helpers.extend(
+            [
+                "def _as_int_list(val: Any) -> list[int]:",
+                "    return [int(x) for x in val] if isinstance(val, list) else []",
+                "",
+                "",
+            ]
+        )
+    if any(f.py_type == "list[float]" for f in fields):
+        helpers.extend(
+            [
+                "def _as_float_list(val: Any) -> list[float]:",
+                "    return [float(x) for x in val] if isinstance(val, list) else []",
+                "",
+                "",
+            ]
+        )
+    if any(f.py_type == "list[bool]" for f in fields):
+        helpers.extend(
+            [
+                "def _as_bool_list(val: Any) -> list[bool]:",
+                "    return [bool(x) for x in val] if isinstance(val, list) else []",
+                "",
+                "",
+            ]
+        )
+    if any(f.py_type == "list[dict[str, Any]]" for f in fields):
+        helpers.extend(
+            [
+                "def _as_dict_list(val: Any) -> list[dict[str, Any]]:",
+                "    return [dict(x) for x in val if isinstance(x, dict)]"
+                " if isinstance(val, list) else []",
                 "",
                 "",
             ]
@@ -257,7 +457,25 @@ def render_tool_module(tool_spec: dict[str, Any]) -> str:
     params = _collect_tool_params(tool_spec)
     projection = _projection_for_tool(tool_spec)
 
-    typing_import = "from typing import Annotated, Any" if params else "from typing import Any"
+    nested_input_classes: list[list[str]] = []
+    nested_body_names: set[str] = set()
+    needs_literal = False
+    for p in params:
+        n_info = _nested_input_model_info(pascal, p)
+        if n_info is not None:
+            nested_input_classes.append(n_info[1])
+            nested_body_names.add(str(p["name"]))
+        p_type, _, _ = _python_type_and_default(p, pascal)
+        if "Literal[" in p_type:
+            needs_literal = True
+
+    typing_syms = ["Any"]
+    if params:
+        typing_syms.insert(0, "Annotated")
+    if needs_literal:
+        typing_syms.append("Literal")
+    typing_import = f"from typing import {', '.join(sorted(typing_syms))}"
+
     lines: list[str] = [
         "from __future__ import annotations",
         "",
@@ -272,7 +490,11 @@ def render_tool_module(tool_spec: dict[str, Any]) -> str:
         "",
     ]
 
-    lines.extend(_helper_functions_needed(projection.fields))
+    lines.extend(
+        _helper_functions_needed(projection.fields, has_nested_body=bool(nested_body_names))
+    )
+    for cls_lines in nested_input_classes:
+        lines.extend(cls_lines)
 
     if projection.kind == "legacy_fallback":
         lines.extend(
@@ -356,7 +578,7 @@ def render_tool_module(tool_spec: dict[str, Any]) -> str:
 
     for p in params:
         p_name = p["name"]
-        py_type, default_repr, _ = _python_type_and_default(p)
+        py_type, default_repr, _ = _python_type_and_default(p, pascal)
         desc_json = json.dumps(p["description"])
         x_header = p.get("x-mcp-header")
         extra_line: str | None = None
@@ -408,7 +630,10 @@ def render_tool_module(tool_spec: dict[str, Any]) -> str:
     if body_params:
         call_lines.append("        json_body={")
         for bp in body_params:
-            call_lines.append(f'            {json.dumps(bp["wire_name"])}: {bp["name"]},')
+            val_expr = (
+                f"_dump_body({bp['name']})" if bp["name"] in nested_body_names else bp["name"]
+            )
+            call_lines.append(f'            {json.dumps(bp["wire_name"])}: {val_expr},')
         call_lines.append("        },")
     call_lines.append("    )")
     lines.extend(call_lines)
@@ -546,10 +771,11 @@ def render_unit_tests(manifest: dict[str, Any]) -> str:
 
     for tool_spec in tools:
         t_name = str(tool_spec["name"])
+        t_pascal = _to_pascal_case(t_name)
         params = _collect_tool_params(tool_spec)
         sample_args: dict[str, Any] = {}
         for p in params:
-            _, _, sample_val = _python_type_and_default(p)
+            _, _, sample_val = _python_type_and_default(p, t_pascal)
             sample_args[p["name"]] = sample_val
 
         projection = _projection_for_tool(tool_spec)

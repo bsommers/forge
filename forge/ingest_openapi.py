@@ -7,10 +7,13 @@ import copy
 import json
 import re
 import sys
+import urllib.parse
 from pathlib import Path
 from typing import Any
 
 import yaml
+
+from forge.projection import flatten_composed_schema
 
 MAX_TOOLS_PER_SERVER = 15
 DEFAULT_MAX_OUTPUT_FIELDS = 8
@@ -38,35 +41,139 @@ def _to_kebab_slug(raw: str) -> str:
     return slug[:32] or "general"
 
 
-def _resolve_local_refs(node: Any, root: dict[str, Any], depth: int = 0) -> Any:  # noqa: ANN401
-    """Inline internal #/components/... $refs and reject external URIs per MCP 2026-07-28."""
+def _load_doc_file(path: Path) -> dict[str, Any]:
+    raw_text = path.read_text(encoding="utf-8")
+    loaded: Any = (
+        json.loads(raw_text) if path.suffix.lower() == ".json" else yaml.safe_load(raw_text)
+    )
+    if not isinstance(loaded, dict):
+        raise SpecNormalizationError(f"Referenced OpenAPI document must be an object: {path.name}")
+    return loaded
+
+
+def _resolve_local_refs(  # noqa: ANN401
+    node: Any,
+    root: dict[str, Any],
+    depth: int = 0,
+    *,
+    spec_root_dir: Path | None = None,
+    current_doc_path: Path | None = None,
+    schema_ancestors: frozenset[str] = frozenset(),
+    doc_cache: dict[Path, dict[str, Any]] | None = None,
+) -> Any:
+    """Resolve internal #/... and confined relative file $refs with cycle breaking (MCP-004)."""
     if depth > 25:
         raise SpecNormalizationError("OpenAPI schema $ref nesting depth exceeds safety limit (25).")
     if isinstance(node, dict):
         if "$ref" in node and isinstance(node["$ref"], str):
-            ref = node["$ref"]
-            if not ref.startswith("#/"):
+            ref = node["$ref"].strip()
+            parsed = urllib.parse.urlsplit(ref)
+            if parsed.scheme or parsed.netloc:
                 raise SpecNormalizationError(
                     f"External $ref URIs are forbidden by MCP 2026-07-28 security guidelines: {ref}"
                 )
-            target: Any = root
-            for part in ref[2:].split("/"):
-                part_unescaped = part.replace("~1", "/").replace("~0", "~")
-                if not isinstance(target, dict) or part_unescaped not in target:
-                    raise SpecNormalizationError(f"Unresolvable internal $ref: {ref}")
-                target = target[part_unescaped]
-            resolved_target = _resolve_local_refs(copy.deepcopy(target), root, depth + 1)
+
+            target_root = root
+            next_doc_path = current_doc_path
+            doc_id = str(current_doc_path.name) if current_doc_path is not None else ""
+
+            if parsed.path:
+                if spec_root_dir is None or current_doc_path is None:
+                    raise SpecNormalizationError(
+                        "External $ref URIs are forbidden by MCP 2026-07-28 "
+                        f"security guidelines: {ref}"
+                    )
+                root_resolved = spec_root_dir.resolve()
+                cand_path = (current_doc_path.parent / parsed.path).resolve()
+                if not cand_path.is_relative_to(root_resolved):
+                    raise SpecNormalizationError(
+                        f"Relative $ref escapes spec root directory (path traversal): {ref}"
+                    )
+                if not cand_path.is_file():
+                    raise SpecNormalizationError(f"Referenced relative $ref file missing: {ref}")
+                cache = doc_cache if doc_cache is not None else {}
+                if cand_path not in cache:
+                    cache[cand_path] = _load_doc_file(cand_path)
+                target_root = cache[cand_path]
+                next_doc_path = cand_path
+                doc_id = str(cand_path.relative_to(root_resolved))
+            elif not ref.startswith("#/"):
+                raise SpecNormalizationError(
+                    f"External $ref URIs are forbidden by MCP 2026-07-28 security guidelines: {ref}"
+                )
+
+            frag = parsed.fragment.lstrip("/")
+            target: Any = target_root
+            if frag:
+                for part in frag.split("/"):
+                    part_unescaped = part.replace("~1", "/").replace("~0", "~")
+                    if not isinstance(target, dict) or part_unescaped not in target:
+                        raise SpecNormalizationError(f"Unresolvable internal $ref: {ref}")
+                    target = target[part_unescaped]
+
+            canonical_ref = f"{doc_id}#/{frag}"
+            is_concrete_schema = isinstance(target, dict) and "$ref" not in target
+
+            if canonical_ref in schema_ancestors and is_concrete_schema:
+                return {
+                    "type": "object",
+                    "properties": {"id": {"type": "string"}},
+                    "x-mcp-cycle-broken": True,
+                }
+
+            next_ancestors = (
+                schema_ancestors | {canonical_ref} if is_concrete_schema else schema_ancestors
+            )
+            resolved_target = _resolve_local_refs(
+                copy.deepcopy(target),
+                target_root,
+                depth + 1,
+                spec_root_dir=spec_root_dir,
+                current_doc_path=next_doc_path,
+                schema_ancestors=next_ancestors,
+                doc_cache=doc_cache,
+            )
             if isinstance(resolved_target, dict) and len(node) > 1:
                 sibling_overrides = {
-                    k: _resolve_local_refs(v, root, depth + 1)
+                    k: _resolve_local_refs(
+                        v,
+                        root,
+                        depth + 1,
+                        spec_root_dir=spec_root_dir,
+                        current_doc_path=current_doc_path,
+                        schema_ancestors=schema_ancestors,
+                        doc_cache=doc_cache,
+                    )
                     for k, v in node.items()
                     if k != "$ref"
                 }
                 return {**resolved_target, **sibling_overrides}
             return resolved_target
-        return {k: _resolve_local_refs(v, root, depth + 1) for k, v in node.items()}
+        return {
+            k: _resolve_local_refs(
+                v,
+                root,
+                depth + 1,
+                spec_root_dir=spec_root_dir,
+                current_doc_path=current_doc_path,
+                schema_ancestors=schema_ancestors,
+                doc_cache=doc_cache,
+            )
+            for k, v in node.items()
+        }
     if isinstance(node, list):
-        return [_resolve_local_refs(item, root, depth + 1) for item in node]
+        return [
+            _resolve_local_refs(
+                item,
+                root,
+                depth + 1,
+                spec_root_dir=spec_root_dir,
+                current_doc_path=current_doc_path,
+                schema_ancestors=schema_ancestors,
+                doc_cache=doc_cache,
+            )
+            for item in node
+        ]
     return node
 
 
@@ -294,14 +401,24 @@ def _extract_x_mcp_fields(op: dict[str, Any], tool_name: str) -> list[str] | Non
 
 
 def _load_resolved_spec(spec_path: Path) -> dict[str, Any]:
-    raw_text = spec_path.read_text(encoding="utf-8")
+    resolved_path = spec_path.resolve()
+    raw_text = resolved_path.read_text(encoding="utf-8")
     loaded_spec: Any = (
-        json.loads(raw_text) if spec_path.suffix.lower() == ".json" else yaml.safe_load(raw_text)
+        json.loads(raw_text)
+        if resolved_path.suffix.lower() == ".json"
+        else yaml.safe_load(raw_text)
     )
     if not isinstance(loaded_spec, dict):
         raise SpecNormalizationError("OpenAPI root document must be a mapping/object.")
     raw_spec: dict[str, Any] = loaded_spec
-    resolved: dict[str, Any] = _resolve_local_refs(raw_spec, raw_spec)
+    cache: dict[Path, dict[str, Any]] = {resolved_path: raw_spec}
+    resolved: dict[str, Any] = _resolve_local_refs(
+        raw_spec,
+        raw_spec,
+        spec_root_dir=resolved_path.parent,
+        current_doc_path=resolved_path,
+        doc_cache=cache,
+    )
     return resolved
 
 
@@ -371,8 +488,12 @@ def _collect_normalized_tools(
             if "requestBody" in op and isinstance(op["requestBody"], dict):
                 content = op["requestBody"].get("content", {})
                 json_media = content.get("application/json", {})
-                if isinstance(json_media, dict) and "schema" in json_media:
-                    req_body_schema = json_media["schema"]
+                if isinstance(json_media, dict) and isinstance(json_media.get("schema"), dict):
+                    req_body_schema = flatten_composed_schema(dict(json_media["schema"]))
+                    for req_prop in req_body_schema.get("required", []):
+                        req_snake = _to_snake_case(str(req_prop))
+                        if req_snake not in required_params:
+                            required_params.append(req_snake)
 
             resp_schema = _extract_response_schema(op)
             x_mcp_fields = _extract_x_mcp_fields(op, tool_name)

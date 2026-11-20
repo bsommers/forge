@@ -4,6 +4,18 @@ All notable changes to **MCP Server Forge** are documented in this file.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.4.0] - 2026-11-19
+
+### Added
+- **Milestone M4 — Wild OpenAPI 3.x Resilience & Dual-Axis Payload Bounding (`MCP-003` / `MCP-004`):**
+  - `forge/ingest_openapi.py` (`W4.1`): Cycle-safe `schema_ancestors` `$ref` resolution breaking recursive object references (`User.manager -> User`) into shallow `{id}` stubs while preserving diamond `$ref` reuse, plus path-confined relative YAML/JSON `$ref` bundling inside `spec_dir.resolve()`.
+  - `forge/projection.py` (`W4.2`): `flatten_composed_schema()` merging `allOf` and nullable/polymorphic `oneOf`/`anyOf` schemas, plus data-carrier array field preservation (`datapoints`, `rows`, `series`, `events` outranking `*_at` timestamps).
+  - `forge/codegen.py` & `tests/contract/test_forge_contract.py` (`W4.3`): Typed `requestBody` synthesis for `float`, `Literal[...]` enums, `list[T]`, and nested `<Tool><Param>Input(BaseModel)` inputs, plus schema-aware contract test argument generation.
+  - `src/server.py` & `golden-template/src/server.py` (`W4.4`): Dual-axis `bound_structured_content()` in `ForgeResponseLimitingMiddleware` slicing high-cardinality short-string arrays (`list[:k]`) *before* conservative `ensure_ascii=True` UTF-8 string truncation—closing `POAM-FORGE-W4.4` (`NIST SC-5` → `satisfied`).
+- **Milestone M3.5 — Stage 5 NIST OSCAL `1.1.2` Attestation (`--emit-oscal`, `forge/oscal_attestation.py`):**
+  - Emits deterministic UUIDv5 `oscal/{component-definition,ssp,assessment-results,poam}.json` and rendered `SSP.md` grounded in NIST SP 800-53r5 Update 1 (`bsommers/security-controls`), NIST COSIS use cases (`UC-AGENT-SINGLE`, `UC-AGENT-MULTI`, `UC-DEV`), and `bsommers/secure-design-patterns` (`MCP-001`–`MCP-008`), verified by `verify_oscal_policy_gate()`.
+- **Ecosystem Strategic Assessment & Pattern Docs (`docs/ECOSYSTEM_VALUE_AND_RELEVANCE.md`, `docs/SECURE_DESIGN_PATTERNS.md`).**
+
 ## [v1.3.0] - 2026-11-18
 
 ### Added

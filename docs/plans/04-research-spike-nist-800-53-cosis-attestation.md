@@ -1,6 +1,6 @@
 # Plan 04 — Research Spike: NIST SP 800-53r5 Update 1 & COSIS Use-Case Control Attestation (`Milestone M3.5`)
 
-- **Status:** `open` *(Immediate Next Milestone ahead of `M4`)*
+- **Status:** `done` *(Shipped in `v1.4.0` via `forge/oscal_attestation.py` & `--emit-oscal`)*
 - **GitHub Milestone:** [`M3.5: Research Spike — NIST SP 800-53r5 Upd1 & COSIS Control Attestation`](https://github.com/bsommers/forge/milestone/4)
 - **Companion Controls Repo:** [`bsommers/security-controls`](https://github.com/bsommers/security-controls) (`Milestone M1` Research Spike)
 - **Companion Patterns Repo:** [`bsommers/secure-design-patterns`](https://github.com/bsommers/secure-design-patterns) (`MCP-001`–`MCP-008`)

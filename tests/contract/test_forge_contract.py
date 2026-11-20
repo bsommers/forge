@@ -154,6 +154,43 @@ async def test_manifest_tools_schemas_and_annotations() -> None:
                 )
 
 
+def _sample_arg_for_schema(prop_schema: dict[str, Any], defs: dict[str, Any]) -> Any:
+    """Synthesize a valid dummy argument matching a tool's JSON Schema 2020-12 property."""
+    if "$ref" in prop_schema and isinstance(prop_schema["$ref"], str):
+        ref_name = prop_schema["$ref"].rsplit("/", 1)[-1]
+        if ref_name in defs and isinstance(defs[ref_name], dict):
+            return _sample_arg_for_schema(defs[ref_name], defs)
+    for union_kw in ("anyOf", "oneOf"):
+        variants = prop_schema.get(union_kw)
+        if isinstance(variants, list):
+            for v in variants:
+                if isinstance(v, dict) and v.get("type") != "null":
+                    return _sample_arg_for_schema(v, defs)
+    if isinstance(prop_schema.get("enum"), list) and prop_schema["enum"]:
+        return prop_schema["enum"][0]
+    p_type = prop_schema.get("type", "string")
+    if p_type == "integer":
+        return int(prop_schema.get("minimum", 1))
+    if p_type == "number":
+        return float(prop_schema.get("minimum", 1.5))
+    if p_type == "boolean":
+        return True
+    if p_type == "array":
+        items = prop_schema.get("items")
+        return [_sample_arg_for_schema(items, defs)] if isinstance(items, dict) else ["item-1"]
+    if p_type == "object":
+        sub_props = prop_schema.get("properties", {})
+        sub_req = prop_schema.get("required", [])
+        if isinstance(sub_props, dict):
+            return {
+                str(rk): _sample_arg_for_schema(sub_props.get(rk, {"type": "string"}), defs)
+                for rk in sub_req
+                if rk in sub_props
+            }
+        return {}
+    return "INC-1"
+
+
 @respx.mock
 async def test_structured_output_and_response_size_guard() -> None:
     """Tools must return valid structuredContent + TextContent and obey max_response_bytes."""
@@ -168,9 +205,22 @@ async def test_structured_output_and_response_size_guard() -> None:
     )
 
     first_tool = manifest["tools"][0]
-    sample_args = {p: "INC-1" for p in first_tool.get("required_params", [])}
 
     async with Client(mcp) as client:
+        registered = {t.name: t for t in await client.list_tools()}
+        t_def = registered[first_tool["name"]]
+        in_schema: dict[str, Any] = (
+            t_def.input_schema
+            if hasattr(t_def, "input_schema")
+            else getattr(t_def, "inputSchema", {})
+        )
+        props = in_schema.get("properties", {})
+        defs = in_schema.get("$defs", {})
+        sample_args = {
+            p: _sample_arg_for_schema(props.get(p, {"type": "string"}), defs)
+            for p in first_tool.get("required_params", [])
+        }
+
         ok_result = await client.call_tool(first_tool["name"], sample_args)
         assert ok_result.is_error is False
         assert ok_result.structured_content is not None

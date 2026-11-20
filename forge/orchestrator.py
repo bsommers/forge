@@ -21,6 +21,7 @@ from forge.ingest_openapi import (
     normalize_openapi_to_manifest,
     plan_openapi_shards,
 )
+from forge.oscal_attestation import emit_oscal_assurance_bundle
 
 MAX_HEAL_ITERATIONS = 3
 
@@ -403,6 +404,9 @@ def emit_stage5_packaging_artifacts(
     workspace_dir: Path,
     manifest: dict[str, Any],
     registry_prefix: str,
+    *,
+    emit_oscal: bool = False,
+    execution_mode: str = "docker",
 ) -> dict[str, Any]:
     """
     Stage 5: Generate client `mcpServers` JSON snippets and PR security governance metadata
@@ -469,6 +473,13 @@ def emit_stage5_packaging_artifacts(
             "total_tools": len(manifest["tools"]),
         },
     }
+    if emit_oscal:
+        artifacts["oscal_assurance"] = emit_oscal_assurance_bundle(
+            workspace_dir=workspace_dir,
+            manifest=manifest,
+            release_artifacts=artifacts,
+            execution_mode=execution_mode,
+        )
     out_path = workspace_dir / "forge-release-artifacts.json"
     out_path.write_text(json.dumps(artifacts, indent=2) + "\n", encoding="utf-8")
     return artifacts
@@ -484,6 +495,7 @@ def _execute_manifest_pipeline(
     registry_prefix: str,
     execution_mode: str,
     agent_cmd: str,
+    emit_oscal: bool = False,
 ) -> dict[str, Any]:
     print(
         f"[Stage 2] Scaffolding locked FastMCP 4.x Golden Template in {output_dir} ...",
@@ -533,7 +545,13 @@ def _execute_manifest_pipeline(
         "[Stage 5] Emitting deployment snippets & PR governance report ...",
         file=sys.stderr,
     )
-    return emit_stage5_packaging_artifacts(output_dir, manifest, registry_prefix)
+    return emit_stage5_packaging_artifacts(
+        output_dir,
+        manifest,
+        registry_prefix,
+        emit_oscal=emit_oscal,
+        execution_mode=execution_mode,
+    )
 
 
 def run_forge_pipeline(
@@ -549,6 +567,7 @@ def run_forge_pipeline(
     execution_mode: str = "docker",
     agent_cmd: str = "",
     max_output_fields: int = DEFAULT_MAX_OUTPUT_FIELDS,
+    emit_oscal: bool = False,
 ) -> dict[str, Any]:
     """Run all 5 stages of the MCP Server Forge pipeline."""
     print(f"[Stage 1] Normalizing {spec_path} -> forge-manifest.json ...", file=sys.stderr)
@@ -568,6 +587,7 @@ def run_forge_pipeline(
         registry_prefix=registry_prefix,
         execution_mode=execution_mode,
         agent_cmd=agent_cmd,
+        emit_oscal=emit_oscal,
     )
     print(json.dumps(artifacts, indent=2))
     return artifacts
@@ -585,6 +605,7 @@ def run_sharded_forge_pipeline(
     execution_mode: str = "docker",
     agent_cmd: str = "",
     max_output_fields: int = DEFAULT_MAX_OUTPUT_FIELDS,
+    emit_oscal: bool = False,
 ) -> dict[str, Any]:
     """Partition an OpenAPI spec by tag into <=15-tool shards and forge every shard."""
     print(f"[Stage 1] Planning domain shards for {spec_path} ...", file=sys.stderr)
@@ -613,6 +634,7 @@ def run_sharded_forge_pipeline(
             registry_prefix=registry_prefix,
             execution_mode=execution_mode,
             agent_cmd=agent_cmd,
+            emit_oscal=emit_oscal,
         )
         merged_mcp_servers.update(shard_art["client_config"]["mcpServers"])
         gov = shard_art["governance"]
@@ -684,6 +706,11 @@ def main(argv: list[str] | None = None) -> None:
         help="Automatically partition >15-tool specs by OpenAPI tag into <=15-tool shards",
     )
     parser.add_argument(
+        "--emit-oscal",
+        action="store_true",
+        help="Emit NIST OSCAL 1.1.2 SSP, SAR, POA&M, and SSP.md during Stage 5",
+    )
+    parser.add_argument(
         "--local",
         action="store_true",
         help="Shorthand for --execution-mode local",
@@ -704,6 +731,7 @@ def main(argv: list[str] | None = None) -> None:
             execution_mode=mode,
             agent_cmd=args.agent_cmd,
             max_output_fields=args.max_output_fields,
+            emit_oscal=args.emit_oscal,
         )
     else:
         run_forge_pipeline(
@@ -719,6 +747,7 @@ def main(argv: list[str] | None = None) -> None:
             execution_mode=mode,
             agent_cmd=args.agent_cmd,
             max_output_fields=args.max_output_fields,
+            emit_oscal=args.emit_oscal,
         )
 
 

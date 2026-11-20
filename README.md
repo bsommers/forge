@@ -214,6 +214,7 @@ docker run -i --rm \
 | **[Interactive Showcase](docs/index.html)** | GitHub Pages visual gallery and interactive capability/gate explorer |
 | **[System Architecture](docs/ARCHITECTURE.md)** | Component map, data flows, sequence/ER/state Mermaid diagrams & ADRs |
 | **[Secure Design Patterns (`mcp-serve`)](docs/SECURE_DESIGN_PATTERNS.md)** | `MCP-001`–`MCP-008` patterns, spec authorities & link to [`bsommers/secure-design-patterns`](https://github.com/bsommers/secure-design-patterns) |
+| **[Strategic Value & Relevance](docs/ECOSYSTEM_VALUE_AND_RELEVANCE.md)** | What the 4-repo Controls + Patterns + Forge + OSCAL/Rego stack means & candid trade-offs |
 | **[Purpose & Threat Model](docs/PURPOSE.md)** | Problem statement, security boundaries, goals, non-goals & trade-offs |
 | **[How-To Guide](docs/HOWTO.md)** | Copy-pasteable recipes for setup, `--tag-filter`, auth modes, custom tools & debugging |
 | **[Product Brochure](docs/brochure.md)** | Executive showcase with Khazad-dûm visuals, personas & value pillars |

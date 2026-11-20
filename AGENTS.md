@@ -13,9 +13,9 @@
 - **Single test file:** `.venv/bin/python -m pytest tests/forge/test_ingest_openapi.py -q`
 - **Lint & strict typecheck:** `.venv/bin/python -m ruff check src forge respx scripts tests dashboard && .venv/bin/python -m mypy src forge respx`
 - **Normalize OpenAPI -> `forge-manifest.json`:** `.venv/bin/python -m forge.ingest_openapi --spec spec/acme-incidents.openapi.yaml --name acme-incidents`
-- **Forge a server locally (offline, no Docker required):**
+- **Forge a server locally (offline, no Docker required, with OSCAL 1.1.2 SSP emission):**
   ```bash
-  .venv/bin/python -m forge.orchestrator --spec spec/acme-incidents.openapi.yaml --name acme-incidents --output-dir /tmp/forged-acme --local
+  .venv/bin/python -m forge.orchestrator --spec spec/acme-incidents.openapi.yaml --name acme-incidents --output-dir /tmp/forged-acme --local --emit-oscal
   ```
 - **Re-render Khazad-dûm SVG + PNG visuals:** `python3 -s scripts/render-graphics.py`
 - **Refresh live build dashboard snapshot:** `.venv/bin/python dashboard/telemetry.py --once`

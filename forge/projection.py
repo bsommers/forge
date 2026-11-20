@@ -28,6 +28,19 @@ TIER_3_EXACT = {
     "deleted",
     "acknowledged",
 }
+DATA_CARRIER_EXACT = {
+    "rows",
+    "columns",
+    "series",
+    "datapoints",
+    "entries",
+    "events",
+    "results",
+    "records",
+    "line_items",
+    "findings",
+    "metrics",
+}
 TIER_4_EXACT = {
     "commander",
     "commander_name",
@@ -87,9 +100,83 @@ def _clean_desc(raw: str, fallback: str) -> str:
     return text[:90]
 
 
+def flatten_composed_schema(schema: dict[str, Any]) -> dict[str, Any]:
+    """Flatten OpenAPI 3.x / JSON Schema 2020-12 allOf and nullable/polymorphic oneOf/anyOf."""
+    result: dict[str, Any] = {
+        k: v for k, v in schema.items() if k not in {"allOf", "oneOf", "anyOf"}
+    }
+    raw_props = result.get("properties")
+    merged_props: dict[str, Any] = dict(raw_props) if isinstance(raw_props, dict) else {}
+    raw_req = result.get("required")
+    merged_req: list[str] = [str(r) for r in raw_req] if isinstance(raw_req, list) else []
+
+    if isinstance(schema.get("allOf"), list):
+        for sub in schema["allOf"]:
+            if isinstance(sub, dict):
+                flat_sub = flatten_composed_schema(sub)
+                sub_props = flat_sub.get("properties")
+                if isinstance(sub_props, dict):
+                    merged_props.update(sub_props)
+                for req_k in flat_sub.get("required", []):
+                    if isinstance(req_k, str) and req_k not in merged_req:
+                        merged_req.append(req_k)
+        result.setdefault("type", "object")
+
+    for union_kw in ("anyOf", "oneOf"):
+        variants = schema.get(union_kw)
+        if not isinstance(variants, list) or not variants:
+            continue
+        non_null = [v for v in variants if isinstance(v, dict) and v.get("type") != "null"]
+        has_null = len(non_null) < len(variants)
+        if len(non_null) == 1:
+            unwrapped = flatten_composed_schema(non_null[0])
+            for k, v in unwrapped.items():
+                if k not in {"properties", "required"}:
+                    result.setdefault(k, v)
+            u_props = unwrapped.get("properties")
+            if isinstance(u_props, dict):
+                merged_props.update(u_props)
+            if has_null:
+                result["nullable"] = True
+        elif len(non_null) > 1:
+            for variant in non_null:
+                flat_var = flatten_composed_schema(variant)
+                v_props = flat_var.get("properties")
+                if isinstance(v_props, dict):
+                    for pk, pv in v_props.items():
+                        merged_props.setdefault(pk, pv)
+            result.setdefault("type", "object")
+
+    if merged_props:
+        result["properties"] = {
+            k: flatten_composed_schema(v) if isinstance(v, dict) else v
+            for k, v in merged_props.items()
+        }
+    if merged_req:
+        result["required"] = merged_req
+    return result
+
+
+def _array_type_mapping(prop_schema: dict[str, Any]) -> tuple[str, str, Any]:
+    items = prop_schema.get("items")
+    if isinstance(items, dict):
+        flat_items = flatten_composed_schema(items)
+        item_type = str(flat_items.get("type", ""))
+        if item_type == "string":
+            return ("list[str]", "[]", ["item-1"])
+        if item_type == "integer":
+            return ("list[int]", "[]", [1])
+        if item_type == "number":
+            return ("list[float]", "[]", [12.5])
+        if item_type == "boolean":
+            return ("list[bool]", "[]", [True])
+    return ("list[dict[str, Any]]", "[]", [{"id": "INC-1"}])
+
+
 def _scalar_type_mapping(
     prop_schema: dict[str, Any], *, required: bool
 ) -> tuple[str, str, Any] | None:
+    prop_schema = flatten_composed_schema(prop_schema)
     raw_type = prop_schema.get("type")
     if isinstance(raw_type, list):
         non_null = [t for t in raw_type if t != "null"]
@@ -118,7 +205,13 @@ def _scalar_type_mapping(
     return None
 
 
-def _score_field(py_name: str, wire_path: tuple[str, ...], *, is_required: bool) -> int:
+def _score_field(
+    py_name: str,
+    wire_path: tuple[str, ...],
+    *,
+    is_required: bool,
+    is_array: bool = False,
+) -> int:
     leaf = wire_path[-1].lower()
     norm = py_name.lower()
     is_nested = len(wire_path) > 1
@@ -126,6 +219,8 @@ def _score_field(py_name: str, wire_path: tuple[str, ...], *, is_required: bool)
         return 100
     if norm in TIER_2_EXACT or (not is_nested and leaf in TIER_2_EXACT):
         return 85
+    if norm in DATA_CARRIER_EXACT or leaf in DATA_CARRIER_EXACT or is_array:
+        return 78
     if norm in TIER_3_EXACT or (not is_nested and leaf in TIER_3_EXACT):
         return 75
     if norm in TIER_4_EXACT or leaf in TIER_4_EXACT or norm.endswith(("_usd", "_pct", "_count")):
@@ -140,6 +235,7 @@ def _extract_candidate_fields(
     *,
     exclude_keys: set[str] | None = None,
 ) -> list[tuple[int, str, ProjectedField]]:
+    obj_schema = flatten_composed_schema(obj_schema)
     props = obj_schema.get("properties")
     if not isinstance(props, dict):
         return []
@@ -156,8 +252,35 @@ def _extract_candidate_fields(
         if not isinstance(raw_sub, dict):
             continue
 
+        raw_sub = flatten_composed_schema(raw_sub)
+        if raw_sub.get("x-mcp-cycle-broken") is True:
+            continue
+
         sub_type = raw_sub.get("type")
         is_req = wire_key in req_set
+
+        # Case 0: Data-carrier array field inside a non-envelope resource object
+        if sub_type == "array":
+            py_name = _safe_py_identifier(wire_key)
+            if py_name in used_names:
+                continue
+            used_names.add(py_name)
+            arr_type, arr_default, arr_sample = _array_type_mapping(raw_sub)
+            desc = _clean_desc(
+                str(raw_sub.get("description") or ""),
+                f"Projected {wire_key} collection.",
+            )
+            pf = ProjectedField(
+                py_name=py_name,
+                source_path=(wire_key,),
+                py_type=arr_type,
+                default_repr=arr_default,
+                description=desc,
+                sample_value=arr_sample,
+            )
+            score = _score_field(py_name, (wire_key,), is_required=is_req, is_array=True)
+            candidates.append((score, py_name, pf))
+            continue
 
         # Case 1: 1-level nested object flattening (e.g. commander -> commander.name)
         if sub_type == "object" or ("properties" in raw_sub and sub_type is None):
@@ -275,10 +398,11 @@ def _detect_collection_envelope(
     response_schema: dict[str, Any],
 ) -> tuple[str | None, dict[str, Any], str | None] | None:
     """Return (collection_key, item_schema, cursor_key) when schema represents a list."""
+    response_schema = flatten_composed_schema(response_schema)
     if response_schema.get("type") == "array":
         items = response_schema.get("items")
         if isinstance(items, dict):
-            return (None, items, None)
+            return (None, flatten_composed_schema(items), None)
 
     props = response_schema.get("properties")
     if not isinstance(props, dict):
@@ -293,7 +417,10 @@ def _detect_collection_envelope(
     array_props: list[tuple[str, dict[str, Any]]] = []
     for k, v in props.items():
         if isinstance(v, dict) and v.get("type") == "array" and isinstance(v.get("items"), dict):
-            array_props.append((str(k), dict(v["items"])))
+            item_s = flatten_composed_schema(dict(v["items"]))
+            # Only treat object-item arrays as collection envelopes; scalar series stay on object
+            if item_s.get("type") == "object" or "properties" in item_s:
+                array_props.append((str(k), item_s))
 
     if not array_props:
         return None
@@ -356,6 +483,7 @@ def project_response_schema(
             ),
         )
 
+    response_schema = flatten_composed_schema(response_schema)
     envelope = _detect_collection_envelope(response_schema)
     if envelope is not None:
         coll_key, item_schema, cursor_key = envelope

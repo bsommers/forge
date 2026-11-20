@@ -42,6 +42,7 @@ LIVING_MARKDOWN_DOCS = [
     ROOT / "docs" / "PURPOSE.md",
     ROOT / "docs" / "ARCHITECTURE.md",
     ROOT / "docs" / "SECURE_DESIGN_PATTERNS.md",
+    ROOT / "docs" / "ECOSYSTEM_VALUE_AND_RELEVANCE.md",
     ROOT / "docs" / "HOWTO.md",
     ROOT / "docs" / "ROADMAP.md",
     ROOT / "docs" / "plans" / "01-high-signal-codegen-and-agent-refinement.md",
