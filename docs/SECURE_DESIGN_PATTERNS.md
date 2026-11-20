@@ -6,7 +6,9 @@
 
 [← Back to Project README](../README.md) · [Documentation Hub](README.md) · [Milestone Roadmap (`M4`/`M5`)](ROADMAP.md) · [Plan 03](plans/03-wild-openapi-resilience-composite-tools-and-hardened-bounds.md)
 
-> **Canonical Standalone Pattern Catalog:** These patterns are published and machine-validated in the standalone public **Secure Design Patterns Library** at **[`bsommers/secure-design-patterns`](https://github.com/bsommers/secure-design-patterns)** under domain **`mcp-serve`**.
+> **Canonical Standalone Libraries:**
+> - **Secure Design Patterns (`mcp-serve`):** **[`bsommers/secure-design-patterns`](https://github.com/bsommers/secure-design-patterns)** (`MCP-001`–`MCP-008` + runnable reference modules).
+> - **NIST SP 800-53r5 Update 1 & COSIS Overlays:** **[`bsommers/security-controls`](https://github.com/bsommers/security-controls)** (20 control families, 5 NIST COSIS AI/SI use-case overlays, OSCAL `1.1.2` profile export, and bidirectional `MCP-001..008` crosswalk; see [Plan 04 Research Spike](plans/04-research-spike-nist-800-53-cosis-attestation.md)).
 
 ---
 

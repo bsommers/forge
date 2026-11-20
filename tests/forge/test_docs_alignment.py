@@ -47,6 +47,7 @@ LIVING_MARKDOWN_DOCS = [
     ROOT / "docs" / "plans" / "01-high-signal-codegen-and-agent-refinement.md",
     ROOT / "docs" / "plans" / "02-per-operation-auth-and-multi-tag-sharding.md",
     ROOT / "docs" / "plans" / "03-wild-openapi-resilience-composite-tools-and-hardened-bounds.md",
+    ROOT / "docs" / "plans" / "04-research-spike-nist-800-53-cosis-attestation.md",
     ROOT / "docs" / "brochure.md",
     ROOT / "docs" / "user-guide" / "README.md",
     ROOT / "docs" / "user-guide" / "01-getting-started.md",
