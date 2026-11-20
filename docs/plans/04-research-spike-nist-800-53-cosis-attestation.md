@@ -4,6 +4,7 @@
 - **GitHub Milestone:** [`M3.5: Research Spike — NIST SP 800-53r5 Upd1 & COSIS Control Attestation`](https://github.com/bsommers/forge/milestone/4)
 - **Companion Controls Repo:** [`bsommers/security-controls`](https://github.com/bsommers/security-controls) (`Milestone M1` Research Spike)
 - **Companion Patterns Repo:** [`bsommers/secure-design-patterns`](https://github.com/bsommers/secure-design-patterns) (`MCP-001`–`MCP-008`)
+- **Companion OSCAL SSP + OPA/Rego Assurance Hub:** [`bsommers/security-assurance`](https://github.com/bsommers/security-assurance) (Live reference OSCAL `1.1.2` SSP/SAR/POA&M + 3 Rego v1 policy suites for `acme-incidents`)
 
 [← Back to Roadmap](../ROADMAP.md) · [Secure Design Patterns](../SECURE_DESIGN_PATTERNS.md) · [← Back to Project README](../../README.md)
 
