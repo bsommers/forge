@@ -45,6 +45,7 @@ LIVING_MARKDOWN_DOCS = [
     ROOT / "docs" / "ECOSYSTEM_VALUE_AND_RELEVANCE.md",
     ROOT / "docs" / "HOWTO.md",
     ROOT / "docs" / "ROADMAP.md",
+    ROOT / "docs" / "CHECKPOINT.md",
     ROOT / "docs" / "plans" / "01-high-signal-codegen-and-agent-refinement.md",
     ROOT / "docs" / "plans" / "02-per-operation-auth-and-multi-tag-sharding.md",
     ROOT / "docs" / "plans" / "03-wild-openapi-resilience-composite-tools-and-hardened-bounds.md",

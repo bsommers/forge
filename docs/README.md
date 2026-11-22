@@ -25,6 +25,7 @@ docs/
 ├── ECOSYSTEM_VALUE_AND_RELEVANCE.md  # Strategic value & candid limits of the 4-repo ATO stack
 ├── HOWTO.md                          # Task-oriented operational recipes & debugging guide
 ├── ROADMAP.md                        # Milestone roadmap (M0-M5) & gap matrix
+├── CHECKPOINT.md                     # Session checkpoint & 4-repo handoff state
 ├── plans/                            # Contract-first implementation plans
 │   ├── 01-high-signal-codegen-and-agent-refinement.md
 │   ├── 02-per-operation-auth-and-multi-tag-sharding.md
