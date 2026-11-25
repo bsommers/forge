@@ -1,7 +1,7 @@
 # Plan 03 — Wild OpenAPI Resilience, Dual-Axis Payload Bounding, Composite Workflows & Kernel Sandboxing (M4 & M5)
 
-- **Status:** `M4 (v1.4.0) done` · `M5 (v2.0.0) open`
-- **Target Milestones:** `M4 (v1.4.0 — shipped)` & `M5 (v2.0.0 — next)` in [`../ROADMAP.md`](../ROADMAP.md)
+- **Status:** `M4 (v1.4.0) done` · `M5 (v2.0.0) done`
+- **Target Milestones:** `M4 (v1.4.0 — shipped)` & `M5 (v2.0.0 — shipped)` in [`../ROADMAP.md`](../ROADMAP.md)
 - **Companion Security Catalog:** [`../SECURE_DESIGN_PATTERNS.md`](../SECURE_DESIGN_PATTERNS.md) (`MCP-001`–`MCP-008`) & [`bsommers/secure-design-patterns`](https://github.com/bsommers/secure-design-patterns)
 - **Recommended First Task:** Task 1 (`W4.1` Cycle-Safe & Path-Confined `$ref` Resolver in `forge/ingest_openapi.py`)
 

@@ -4,6 +4,17 @@ All notable changes to **MCP Server Forge** are documented in this file.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.0.0] - 2026-11-21
+
+### Added
+- **Milestone M5 — Composite Intent Workflows & Active Toolset Profiles (`W5.1`, `MCP-005`):**
+  - `forge/workflows.py`, `forge/ingest_openapi.py`, `forge/codegen.py`: Declarative multi-endpoint workflow compiler supporting OpenAPI root `x-mcp-workflows` and sidecar `--workflows forge-workflows.yaml`. Validates acyclic `$steps.<id>.<path>` DAGs, runs independent upstream HTTP calls concurrently via `asyncio.gather()` over the pooled `httpx.AsyncClient` while awaiting data-dependent waves sequentially, lifts unbound required parameters cleanly, routes per-step OpenAPI `security` overrides via `RouteDispatchAuth`, and projects a unified typed Pydantic `BaseModel` (`outputSchema`).
+  - `forge/workflows.py` & `forge/orchestrator.py`: Adds `--toolset-budget` (`1..15`, default `15`) and emits role-partitioned `client_profiles` (`read-only` vs. `mutating-ops`) in `forge-suite-artifacts.json` so every mounted client profile strictly respects the `<= 15`-tool active context ceiling.
+- **Milestone M5 — Host OS Kernel Sandboxing & Recorded Contract Fixture Replay (`W5.2`, `MCP-002` / `MCP-008`):**
+  - `forge/sandbox.py` & `forge/orchestrator.py`: Wraps host `--execution-mode agent` subprocesses (`--sandbox-policy auto|required|off`) in macOS XNU Seatbelt (`sandbox-exec`) or Linux `bubblewrap` (`bwrap`), blocking host credential directories (`~/.ssh`, `~/.aws`, `~/.gnupg`, `~/.config/gh`, `~/.kube`), denying outbound network by default, locking the forged workspace read-only (even under `/tmp`), and carving out write access strictly to `src/tools/`, `tests/unit/`, and `README.md` alongside `0444` + SHA-256 tamper restoration.
+  - `scripts/validate_mcp.py` & `golden-template/scripts/validate_mcp.py`: Adds `--fixtures-dir` (and automatic `tests/fixtures/*.json` discovery) Recorded Contract Fixture Replay checking upstream JSON payloads for schema drift with exact JSONPath diagnostics (`$.severity: undocumented null ...`) and replaying live MCP tool calls over `respx`.
+  - `forge/oscal_attestation.py`: Closes **`POAM-FORGE-W5.2`** (`NIST SC-39` Process Isolation -> `satisfied`, `0` open POA&M items) when container, deterministic `--local`, or kernel-sandboxed `agent` execution is active, while honestly re-opening `POAM-FORGE-W5.2` if `--sandbox-policy off` disables host sandboxing.
+
 ## [v1.4.0] - 2026-11-19
 
 ### Added

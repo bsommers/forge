@@ -1,93 +1,47 @@
 ---
-status: COMPLETE — v1.4.0 (M0–M4 + OSCAL Stage 5) shipped across 4-repo ecosystem; M5 (v2.0.0) queued next
+status: COMPLETE — Forge v2.0.0 (M0–M5), Security Controls v1.1.0 (M1 1,189-control index), and Security Assurance v1.1.0 (0 open POA&Ms) shipped
 next: `.venv/bin/python scripts/validate_mcp.py && .venv/bin/python -m pytest -q`
 depends: [security-controls, secure-design-patterns, security-assurance]
 ---
 
-# Session Checkpoint — MCP Server Forge & Continuous Security Assurance Ecosystem
+# Session Checkpoint — MCP Server Forge `v2.0.0` & Continuous Security Assurance Ecosystem
 
-**Status:** COMPLETE through `v1.4.0` (`M0`–`M4` + `M3.5` NIST/OSCAL integration); all 4 public repositories clean, tested, branded with dual SVG+PNG logo kits, and pushed to `origin/main`.
+**Status:** COMPLETE through **`forge v2.0.0` (`M0`–`M5`)**, **`security-controls v1.1.0` (`M1`)**, **`security-assurance v1.1.0`**, and **`secure-design-patterns`**. All technical POA&M items (`POAM-FORGE-W4.4` / `SC-5` and `POAM-FORGE-W5.2` / `SC-39`) are **closed (`0` open technical POA&M items)**.
 
 ---
 
 ## Done (with evidence)
 
-### 1. `bsommers/forge` (`/Users/bill/src/swe/forge` — Active Workspace)
-- **Release & Remote:** Tagged and published [`v1.4.0`](https://github.com/bsommers/forge/releases/tag/v1.4.0) on `https://github.com/bsommers/forge`.
-- **Milestone `M4` (`W4.1`–`W4.4`, [Plan 03](plans/03-wild-openapi-resilience-composite-tools-and-hardened-bounds.md)):**
-  - **`W4.1` (`forge/ingest_openapi.py`):** Cycle-safe `schema_ancestors` `$ref` resolution (breaks recursive object schemas such as `User.manager -> User` into `{id: str, x-mcp-cycle-broken: true}` while preserving diamond reuse) + path-confined relative YAML/JSON `$ref` loading within `spec_dir.resolve()` (rejecting `../` traversal and remote `http(s)://` SSRF).
-  - **`W4.2` (`forge/projection.py`):** `flatten_composed_schema()` (`allOf` merge + nullable/polymorphic `oneOf`/`anyOf`) and data-carrier array preservation (`datapoints`, `rows`, `series`, `events` scored `78` ahead of `*_at` timestamps `45`).
-  - **`W4.3` (`forge/codegen.py`, `tests/contract/test_forge_contract.py`, `golden-template/`):** Typed `requestBody` synthesis (`float`, `Literal[...]`, `list[T]`, nested `<Tool><Param>Input(BaseModel)`) and schema-driven contract test sample generation (`_sample_arg_for_schema`).
-  - **`W4.4` (`src/server.py`, `golden-template/src/server.py`):** Dual-axis `bound_structured_content()` in `ForgeResponseLimitingMiddleware` (Pass 1 binary-search list-cardinality slicing + Pass 2 conservative `ensure_ascii=True` wire-JSON string truncation + Pass 3 `ToolError` fallback), closing **`POAM-FORGE-W4.4`** (`NIST SC-5` -> `satisfied`).
-- **Stage 5 `--emit-oscal` (`forge/oscal_attestation.py`, `forge/orchestrator.py`, [Plan 04](plans/04-research-spike-nist-800-53-cosis-attestation.md)):**
-  - Emits deterministic UUIDv5 NIST OSCAL `1.1.2` `oscal/{component-definition,ssp,assessment-results,poam}.json` + `SSP.md` and enforces `verify_oscal_policy_gate()` directly inside `forge.orchestrator --emit-oscal`.
+### 1. `bsommers/forge` (`/Users/bill/src/swe/forge` — Active Workspace, `v2.0.0`)
+- **Milestone `M5` (`W5.1`–`W5.2`, [Plan 03](plans/03-wild-openapi-resilience-composite-tools-and-hardened-bounds.md)):**
+  - **`W5.1` Composite Workflows & Active Toolset Profiles (`forge/workflows.py`, `forge/ingest_openapi.py`, `forge/codegen.py`, `forge/orchestrator.py`):**
+    - Compiles OpenAPI `x-mcp-workflows` and sidecar `--workflows forge-workflows.yaml` multi-endpoint joins into single stateless `@tool` coroutines (`asyncio.gather()` fan-out across independent DAG waves + sequential awaits on `$steps.<id>.<path>` dependencies + per-step `RouteDispatchAuth` credential routing).
+    - Emits role-scoped `client_profiles` (`read-only` vs. `mutating-ops`, `--toolset-budget` `<= 15`) inside `forge-suite-artifacts.json` so mounting multi-shard suites never exceeds the 15-tool cognitive ceiling.
+  - **`W5.2` Host OS Kernel Sandboxing & Recorded Contract Replay (`forge/sandbox.py`, `scripts/validate_mcp.py`, `forge/oscal_attestation.py`):**
+    - Wraps `--execution-mode agent` subprocesses (`--sandbox-policy auto|required|off`) in macOS XNU Seatbelt (`sandbox-exec`) or Linux `bubblewrap` (`bwrap`), blocking `~/.ssh`, `~/.aws`, `~/.gnupg`, `~/.config/gh`, `~/.kube`, denying network by default, locking the forged workspace `:ro` (even under `/tmp`), and granting `:rw` strictly to `src/tools/`, `tests/unit/`, and `README.md` alongside `0444` + SHA-256 tamper restoration.
+    - Empirically verified on live macOS XNU `sandbox-exec`: writes to `src/tools/ok.py` succeed while writes to `0644` `src/auth.py` fail with kernel `Operation not permitted` (`EPERM`).
+    - Adds `--fixtures-dir` (and `tests/fixtures/*.json`) Recorded Contract Fixture Replay in `scripts/validate_mcp.py` & `golden-template/scripts/validate_mcp.py` with exact JSONPath schema-drift diagnostics (`$.severity: undocumented null ...`).
+    - Closes **`POAM-FORGE-W5.2`** (`NIST SC-39` -> `satisfied`, `0` open POA&M items).
 - **Verification Evidence:**
-  - `.venv/bin/python scripts/validate_mcp.py` -> `[PASS] ALL 5 MCP 2026-07-28 GATES SUCCEEDED` (`100.0%` `src/tools` branch cov).
-  - `.venv/bin/python -m pytest -q` -> `57 passed`.
-  - `.venv/bin/python -m ruff check src forge respx scripts tests dashboard && .venv/bin/python -m mypy src forge respx` -> `0` issues (`17` source files).
+  - `.venv/bin/python scripts/validate_mcp.py` -> `[PASS] All MCP Server Forge (2026-07-28) verification gates succeeded.`
+  - `.venv/bin/python -m pytest -q` -> `63 passed`.
+  - `.venv/bin/python -m ruff check src forge respx scripts tests dashboard && .venv/bin/python -m mypy src forge respx scripts/validate_mcp.py` -> `0` issues (`20` source files).
 
-### 2. `bsommers/secure-design-patterns` (`/Users/bill/src/swe/secure-design-patterns`)
-- **Remote & HEAD:** `https://github.com/bsommers/secure-design-patterns` (`main` @ `0232495`, GitHub Actions CI green).
-- **Shipped:**
-  - Normative `authorities/mcp-2026-07-28.json` (`13` specification & RFC authorities) + `patterns/mcp-serve/catalog.json` (`MCP-001` through `MCP-008`) validated against JSON Schema `2020-12`.
-  - `5` zero-dependency runnable Python reference implementations (`patterns/mcp_serve_ref/`), including `dual_axis_bounding.py`, `cycle_safe_ref_resolver.py`, `route_dispatch_auth.py`, `optional_mcp_header.py`, and `tamper_evident_workspace.py`.
-  - *"Blue-Note Prism Blueprint"* Art-Deco Cyber-Jazz SVG+PNG logo kit (`scripts/render_graphics.py`, `assets/logo.{svg,png}`, `docs/assets/{logo,icon}.{svg,png}`, `docs/assets/hero-illustration.png`).
-  - **Evidence:** `pytest -q` -> `11 passed`; `mypy --strict` -> `0` issues.
+### 2. `bsommers/security-controls` (`/Users/bill/src/swe/security-controls`, [`v1.1.0`](https://github.com/bsommers/security-controls/releases/tag/v1.1.0) @ `9fe95c6`)
+- **Milestone `M1` (`RS-1`–`RS-4`, GitHub Milestone `#1` closed):**
+  - **`RS-1` (`src/security_controls/full_index.py`, `scripts/spike_ingest_oscal.py`):** Indexed all **`1,189` controls & enhancements** (`322` base + `867` enhancements = `1,007` active + `182` withdrawn across `20` groups) + 4 SP 800-53B baselines from `usnistgov/oscal-content@v1.1.0` (`Rev. 5.1.1`) into `catalog/sp800-53-r5-upd1/full-index.json` (**`298.91 KiB`**, **`33.55 ms`** median compile, **`2.0–2.3 ms`** cold load, `0` mismatches vs. `core-controls.json`).
+  - **`RS-2` (`schema/cosis-overlay.schema.json`):** Two-layer `source_provenance` separating `[NIST-DRAFT]` CSRC COSIS anchors from `MCP-001..008` engineering tailoring (`0` unattributed assertions).
+  - **`RS-3` (`schema/oscal_profile_schema.json`, `src/security_controls/oscal.py`):** Verbatim NIST OSCAL `1.1.2` JSON Schema validation (`5 / 5` single + composite profiles passing with `0` errors) + `hypothesis` monotonicity fuzzing (`13 passed`, `mypy --strict` `0` issues).
+  - **`RS-4` (`src/security_controls/assessor.py`, `docs/adr/0001-oscal-ingestion-and-attestation-boundary.md`):** Deterministic SP 800-53A Forge evidence evaluator (`100%` technical `P1` coverage, human controls quarantined as `human-attestation-required`).
 
-### 3. `bsommers/security-controls` (`/Users/bill/src/swe/security-controls`)
-- **Remote & HEAD:** `https://github.com/bsommers/security-controls` (`main` @ `45fee09`, GitHub Actions CI green).
-- **Shipped:**
-  - Machine-readable NIST SP 800-53 Rev. 5 Update 1 catalog (`20` control families, `45` core controls & enhancements) + **NIST COSIS** (*SP 800-53 Control Overlays for Super Intelligence Systems*, `https://csrc.nist.gov/projects/cosis/use-cases`) overlays across all `5` official use cases (`UC-GEN`, `UC-PRED`, `UC-AGENT-SINGLE`, `UC-AGENT-MULTI`, `UC-DEV`).
-  - Deterministic multi-overlay resolver (`resolve_controls`) and UUIDv5 OSCAL `1.1.2` Profile compiler (`export_oscal_profile`).
-  - *"20-Family Star-Dial & 5-Node COSIS Aegis"* SVG+PNG logo kit + open GitHub Milestone `#1` (`M1: v1.1.0 — Research Spike`).
-  - **Evidence:** `pytest -q` -> `8 passed`; `mypy --strict` -> `0` issues.
+### 3. `bsommers/security-assurance` (`/Users/bill/src/swe/security-assurance`, [`v1.1.0`](https://github.com/bsommers/security-assurance/releases/tag/v1.1.0) @ `ec28b92`)
+- Updated `forge-acme-incidents` OSCAL `1.1.2` `SSP`, `SAR`, `POA&M`, and `docs/rendered/acme-incidents-SSP.md` to `forge v2.0.0` + `security-controls v1.1.0`, closing **`POAM-FORGE-W5.2`** (`SC-39` -> `satisfied`, **`0` open technical POA&M items**; `7 passed`, `mypy --strict` `0` issues).
 
-### 4. `bsommers/security-assurance` (`/Users/bill/src/swe/security-assurance`)
-- **Remote & HEAD:** `https://github.com/bsommers/security-assurance` (`main` @ `0c73c3d`, GitHub Actions OPA + OSCAL CI green).
-- **Shipped:**
-  - Compiles `security-controls` + `secure-design-patterns` + `forge` (`acme-incidents` `v1.4.0`) into OSCAL `1.1.2` `component-definition`, `ssp`, `assessment-results`, `poam` (`POAM-FORGE-W4.4` closed; `POAM-FORGE-W5.2` tracking `SC-39` host sandbox for `M5`), and human-readable `docs/rendered/acme-incidents-SSP.md`.
-  - `3` Open Policy Agent (`Rego v1`) policy suites + unit tests (`policies/forge/manifest_guard.rego`, `policies/oscal/ssp_gate.rego`, `policies/runtime/mcp_tool_authz.rego`), `ADR-0001` (OSCAL = declarative state nouns; Rego = executable policy verbs), and *"Tri-Gate Policy Conductor"* SVG+PNG logo kit.
-  - **Evidence:** `pytest -q` -> `7 passed`; `opa check --strict` & `opa test -v` -> green in CI.
+### 4. `bsommers/secure-design-patterns` (`/Users/bill/src/swe/secure-design-patterns` @ `0232495`)
+- Normative `MCP-001`–`MCP-008` catalog + 5 runnable reference implementations (`11 passed`, `mypy --strict` `0` issues).
 
 ---
 
 ## Failed / blocked
 
-- **None blocked.** All gates across all four repositories pass locally and in GitHub Actions.
-
----
-
-## Bugs fixed this session
-
-1. **`ensure_ascii=True` 3x JSON surrogate-escape budget overflow (`src/server.py`, `golden-template/src/server.py`):** Measuring `json.dumps(..., ensure_ascii=False)` undercounted 4-byte UTF-8 emojis (`🔥`) that serialize to 12-byte `\ud83d\udd25` escapes on default JSON wires. Fixed `_wire_json_len()` to measure conservative `ensure_ascii=True` byte length.
-2. **`_collect_tool_params` ordering in `forge/codegen.py`:** Previously `required_params` fallback ran before `request_body_schema`, coercing required body properties to `str` query parameters. Fixed by parsing `request_body_schema` before the fallback loop.
-3. **Typed contract test sample synthesis (`tests/contract/test_forge_contract.py` & `golden-template/`):** Replaced hardcoded `"INC-1"` sample values with `_sample_arg_for_schema()` so `float`, `integer`, `boolean`, `array`, `object`, and `enum` parameters pass Pydantic validation during generic contract runs.
-4. **Alias `$ref` loop vs. recursive object `$ref` (`forge/ingest_openapi.py`):** Added only concrete non-`$ref` targets (`"$ref" not in target`) to `schema_ancestors`, breaking real object cycles (`User.manager -> User`) while still raising `SpecNormalizationError` on degenerate alias loops (`Node -> Node`).
-5. **ImageMagick MVG SVG rasterizer quirks (`scripts/render-graphics.py` & companion `render_graphics.py`):** Used explicit `width`/`height` attributes, 72-vertex `<polygon>` coordinates instead of 3-argument `rotate(deg cx cy)`, no `letter-spacing`, and explicit `-font /System/Library/Fonts/Helvetica.ttc` substitution during PNG rasterization.
-6. **GitHub Pages v4 artifact permissions (`.github/workflows/pages.yml`):** Split `build` (`actions/upload-pages-artifact@v4.0.0`) and `deploy` (`actions/deploy-pages@v4.0.5` with explicit `actions: read`) so job-level `permissions:` does not strip `GITHUB_TOKEN`'s ability to read the uploaded `github-pages` artifact metadata.
-
----
-
-## State that may have changed
-
-- **4 sibling git repositories under `/Users/bill/src/swe/`:**
-  - `/Users/bill/src/swe/forge` (`bsommers/forge`, active workspace)
-  - `/Users/bill/src/swe/secure-design-patterns` (`bsommers/secure-design-patterns`)
-  - `/Users/bill/src/swe/security-controls` (`bsommers/security-controls`)
-  - `/Users/bill/src/swe/security-assurance` (`bsommers/security-assurance`)
-- **Locked/Template sync:** `src/{auth,deps,server}.py`, `tests/contract/test_forge_contract.py`, and `scripts/validate_mcp.py` are byte-synchronized with `golden-template/`.
-- **Architecture & value synthesis:** Documented in [SECURE_DESIGN_PATTERNS.md](SECURE_DESIGN_PATTERNS.md) and [ECOSYSTEM_VALUE_AND_RELEVANCE.md](ECOSYSTEM_VALUE_AND_RELEVANCE.md).
-
----
-
-## Next steps
-
-1. **Sanity-check baseline on resume (from `/Users/bill/src/swe/forge`):**
-   ```bash
-   .venv/bin/python scripts/validate_mcp.py && .venv/bin/python -m pytest -q
-   ```
-2. **Execute `forge` Milestone `M5` (`v2.0.0`) — Composite Workflows & Host Sandboxing ([Plan 03](plans/03-wild-openapi-resilience-composite-tools-and-hardened-bounds.md)):**
-   - **`W5.1`:** Implement `x-mcp-workflows` server-side multi-call composite `@tool` joins and `client_profiles` (`<= 15` tools per task role) in `forge/ingest_openapi.py` + `forge/codegen.py`.
-   - **`W5.2`:** Wrap `--execution-mode agent` subprocesses in macOS `sandbox-exec` / Linux `bwrap` inside `forge/orchestrator.py` (closing **`POAM-FORGE-W5.2`** / `NIST SC-39` in both `forge/oscal_attestation.py` and `bsommers/security-assurance`) + add `tests/fixtures/` recorded replay support.
-3. **Execute `security-controls` Milestone `M1` (`v1.1.0`) — Full NIST OSCAL Catalog Research Spike (`/Users/bill/src/swe/security-controls/docs/plans/01-research-spike-oscal-cosis-automated-overlay-compilation.md`):**
-   - Vendor pinned `usnistgov/oscal-content` Rev. 5.1.1 JSON (`1,189` controls + enhancements), benchmark `< 150ms` cold index load, validate emitted OSCAL `1.1.2` profiles against NIST's official `oscal_profile_schema.json`, and run property-based `hypothesis` monotonicity fuzzing (`RS-1`–`RS-4`).
+- **None.** All roadmap milestones (`forge` `M0`–`M5` and `security-controls` `M0`–`M1`) are complete, verified, tagged, and pushed.

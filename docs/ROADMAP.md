@@ -17,7 +17,7 @@ flowchart LR
     M2 --> M3["M3: v1.3.0 (done)\nPer-Op Auth + Auto-Split"]
     M3 --> M35["M3.5: Spike (done)\nStage 5 --emit-oscal"]
     M35 --> M4["M4: v1.4.0 (done)\nWild OpenAPI + Dual-Axis Bounds"]
-    M4 --> M5["M5: v2.0.0 (open — NEXT)\nComposite Workflows + OS Sandbox"]
+    M4 --> M5["M5: v2.0.0 (done)\nComposite Workflows + OS Sandbox"]
 ```
 
 ---
@@ -32,7 +32,7 @@ flowchart LR
 | **M3** | `v1.3.0` | `done` | **Per-Operation Auth Overrides, Multi-Tag Suite Sharding (`--auto-split-tags`) & Hardened CI/Pages** — `RouteDispatchAuth` per-tool auth routing, automatic `<= 15`-tool sharding, and SHA-pinned GitHub Actions CI + Pages | `.venv/bin/python -m pytest tests/forge/test_per_op_auth.py tests/forge/test_multi_shard.py -q && .venv/bin/python scripts/validate_mcp.py` |
 | **M3.5** | `v1.4.0` | `done` | **NIST SP 800-53r5 Update 1 & COSIS Stage 5 OSCAL Attestation (`--emit-oscal`)** — Emit deterministic OSCAL `1.1.2` `SSP`, `SAR`, `POA&M`, and `SSP.md` grounded in [`bsommers/security-controls`](https://github.com/bsommers/security-controls) & [`bsommers/security-assurance`](https://github.com/bsommers/security-assurance) | `.venv/bin/python -m pytest tests/forge/test_m4_resilience_and_oscal.py -q` |
 | **M4** | `v1.4.0` | `done` | **Wild OpenAPI Resilience & Dual-Axis Payload Bounding** — Cycle-safe/relative `$ref`s (`MCP-004`), `allOf`/`oneOf` + data-carrier projection, typed `requestBody` models, and list-cardinality + byte bounding in `ForgeResponseLimitingMiddleware` (`MCP-003`, closing `POAM-FORGE-W4.4`) | `.venv/bin/python -m pytest tests/forge/test_m4_resilience_and_oscal.py -q && .venv/bin/python scripts/validate_mcp.py` |
-| **M5** | `v2.0.0` | `open` | **Composite Intent Workflows, Active Toolset Budgets & Kernel Sandboxing** — Multi-endpoint `x-mcp-workflows` server-side joins (`MCP-005`), `<= 15`-tool client profiles, OS `sandbox-exec`/`bwrap` host isolation (`MCP-008`), and recorded fixture replay | `.venv/bin/python -m pytest -q && .venv/bin/python scripts/validate_mcp.py` |
+| **M5** | `v2.0.0` | `done` | **Composite Intent Workflows, Active Toolset Budgets & Kernel Sandboxing** — Multi-endpoint `x-mcp-workflows` server-side joins (`MCP-005`), `<= 15`-tool client profiles, OS `sandbox-exec`/`bwrap` host isolation (`MCP-008`, closing `POAM-FORGE-W5.2` / `NIST SC-39`), and recorded fixture replay | `.venv/bin/python -m pytest tests/forge/test_workflows.py tests/forge/test_host_sandbox.py -q && .venv/bin/python scripts/validate_mcp.py` |
 
 ---
 
@@ -60,5 +60,5 @@ flowchart LR
 
 - **[Plan 01 — High-Signal Schema Projection & Host-Agent Semantic Refinement (Milestones M1 & M2)](plans/01-high-signal-codegen-and-agent-refinement.md)** (`status: done`) — Complete contract-first specification, field-ranking algorithm, SHA-256 lock guard, pre-build test matrix, and dependency-ordered tasks.
 - **[Plan 02 — Per-Operation Auth Overrides, Multi-Tag Sharding & Hardened CI/Pages (Milestone M3)](plans/02-per-operation-auth-and-multi-tag-sharding.md)** (`status: done`) — `RouteDispatchAuth` multi-scheme router, `plan_openapi_shards` / `--auto-split-tags` suite sharding, and SHA-pinned GitHub Actions CI + GitHub Pages deployment.
-- **[Plan 03 — Wild OpenAPI Resilience, Dual-Axis Payload Bounding, Composite Workflows & Kernel Sandboxing (Milestones M4 & M5)](plans/03-wild-openapi-resilience-composite-tools-and-hardened-bounds.md)** (`status: open`) — Skeptical gap remediation blueprint paired with [`SECURE_DESIGN_PATTERNS.md`](SECURE_DESIGN_PATTERNS.md) (`MCP-001`–`MCP-008`).
-- **[Plan 04 — Research Spike: NIST SP 800-53r5 Update 1 & COSIS Use-Case Control Attestation (Milestone M3.5 — Next)](plans/04-research-spike-nist-800-53-cosis-attestation.md)** (`status: open`) — Time-boxed spike connecting [`bsommers/security-controls`](https://github.com/bsommers/security-controls) (`NIST SP 800-53r5 Upd1` + `COSIS` 5 use cases) to Stage 5 OSCAL `1.1.2` attestation.
+- **[Plan 03 — Wild OpenAPI Resilience, Dual-Axis Payload Bounding, Composite Workflows & Kernel Sandboxing (Milestones M4 & M5)](plans/03-wild-openapi-resilience-composite-tools-and-hardened-bounds.md)** (`status: done`) — Skeptical gap remediation blueprint paired with [`SECURE_DESIGN_PATTERNS.md`](SECURE_DESIGN_PATTERNS.md) (`MCP-001`–`MCP-008`).
+- **[Plan 04 — Research Spike: NIST SP 800-53r5 Update 1 & COSIS Use-Case Control Attestation (Milestone M3.5)](plans/04-research-spike-nist-800-53-cosis-attestation.md)** (`status: done`) — Time-boxed spike connecting [`bsommers/security-controls`](https://github.com/bsommers/security-controls) (`NIST SP 800-53r5 Upd1` + `COSIS` 5 use cases) to Stage 5 OSCAL `1.1.2` attestation.

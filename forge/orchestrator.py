@@ -11,6 +11,7 @@ import shutil
 import stat
 import subprocess
 import sys
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -18,10 +19,13 @@ from typing import Any
 from forge.codegen import synthesize_workspace_code
 from forge.ingest_openapi import (
     DEFAULT_MAX_OUTPUT_FIELDS,
+    MAX_TOOLS_PER_SERVER,
     normalize_openapi_to_manifest,
     plan_openapi_shards,
 )
 from forge.oscal_attestation import emit_oscal_assurance_bundle
+from forge.sandbox import SandboxPlan, prepare_sandboxed_agent_command
+from forge.workflows import build_client_profiles
 
 MAX_HEAL_ITERATIONS = 3
 
@@ -34,6 +38,7 @@ LOCKED_RELATIVE_PATHS: tuple[str, ...] = (
     "src/deps.py",
     "src/server.py",
     "tests/contract",
+    "tests/fixtures",
     "scripts/validate_mcp.py",
 )
 
@@ -142,6 +147,8 @@ def stage_workspace(
     golden_template_dir: Path,
     workspace_dir: Path,
     manifest: dict[str, Any],
+    *,
+    fixtures_dir: Path | None = None,
 ) -> None:
     """Stage 2: Clone Golden Template, write forge-manifest.json, and clear stub tools."""
     if workspace_dir.exists():
@@ -197,6 +204,15 @@ def stage_workspace(
         if py_file.name != "__init__.py":
             py_file.unlink()
     (unit_test_dir / "__init__.py").touch()
+
+    if fixtures_dir is not None:
+        resolved_fx = fixtures_dir.resolve()
+        if not resolved_fx.is_dir():
+            raise FileNotFoundError(f"Fixtures directory does not exist: {fixtures_dir}")
+        staged_fx = workspace_dir / "tests" / "fixtures"
+        staged_fx.mkdir(parents=True, exist_ok=True)
+        for fx_file in sorted(resolved_fx.glob("*.json")):
+            shutil.copy2(fx_file, staged_fx / fx_file.name)
 
     manifest_path = workspace_dir / "forge-manifest.json"
     manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
@@ -289,14 +305,18 @@ def invoke_host_agent(
     agent_cmd: str,
     prompt_text: str,
     timeout_sec: float = 300.0,
-) -> None:
+    *,
+    sandbox_policy: str = "auto",
+    allow_network: bool = False,
+) -> SandboxPlan:
     """
     Stage 3 (Docker-free `agent` mode): Run a host CLI coding agent against workspace_dir
-    while enforcing 0444 read-only permissions and pre/post SHA-256 lock verification.
+    under OS kernel sandboxing (macOS sandbox-exec / Linux bwrap) plus 0444 & SHA-256 guards.
     """
     if not agent_cmd.strip():
         raise ValueError("Host-agent mode requires a non-empty --agent-cmd command string.")
 
+    ws_resolved = workspace_dir.resolve()
     baseline_digests = snapshot_locked_digests(workspace_dir)
     baseline_bytes = _snapshot_locked_bytes(workspace_dir)
 
@@ -306,20 +326,39 @@ def invoke_host_agent(
     raw_tokens = shlex.split(agent_cmd)
     uses_prompt_placeholder = any("{prompt_file}" in tok for tok in raw_tokens)
     resolved_cmd = [
-        tok.replace("{prompt_file}", str(prompt_file)).replace(
-            "{workspace}", str(workspace_dir.resolve())
-        )
+        tok.replace("{prompt_file}", str(prompt_file)).replace("{workspace}", str(ws_resolved))
         for tok in raw_tokens
     ]
 
+    sys_tmp = Path(tempfile.gettempdir()).resolve()
+    scratch_dirs: list[Path] = []
+    for tok in resolved_cmd[1:]:
+        cand_parent = Path(tok).parent
+        if cand_parent.exists():
+            res_parent = cand_parent.resolve()
+            if (
+                res_parent.is_relative_to(sys_tmp)
+                and not res_parent.is_relative_to(ws_resolved)
+                and res_parent != sys_tmp
+            ):
+                scratch_dirs.append(res_parent)
+
+    sandbox_plan = prepare_sandboxed_agent_command(
+        resolved_cmd,
+        workspace_dir,
+        policy=sandbox_policy,
+        allow_network=allow_network,
+        extra_writable_paths=scratch_dirs,
+    )
+
     env = dict(os.environ)
     env["FORGE_PROMPT_FILE"] = str(prompt_file)
-    env["FORGE_WORKSPACE_DIR"] = str(workspace_dir.resolve())
+    env["FORGE_WORKSPACE_DIR"] = str(ws_resolved)
 
     _set_locked_permissions(workspace_dir, writable=False)
     try:
         proc = subprocess.run(  # noqa: S603
-            resolved_cmd,
+            sandbox_plan.command,
             cwd=workspace_dir,
             env=env,
             input=None if uses_prompt_placeholder else prompt_text,
@@ -331,6 +370,8 @@ def invoke_host_agent(
     finally:
         _set_locked_permissions(workspace_dir, writable=True)
         prompt_file.unlink(missing_ok=True)
+        for cleanup_file in sandbox_plan.cleanup_paths:
+            cleanup_file.unlink(missing_ok=True)
 
     enforce_and_verify_locked_digests(workspace_dir, baseline_digests, baseline_bytes)
 
@@ -338,6 +379,7 @@ def invoke_host_agent(
         raise RuntimeError(
             f"Host coding agent exited with code {proc.returncode}:\n{proc.stderr}"
         )
+    return sandbox_plan
 
 
 def run_isolated_validation(
@@ -407,6 +449,8 @@ def emit_stage5_packaging_artifacts(
     *,
     emit_oscal: bool = False,
     execution_mode: str = "docker",
+    sandbox_enforced: bool = True,
+    sandbox_backend: str = "container",
 ) -> dict[str, Any]:
     """
     Stage 5: Generate client `mcpServers` JSON snippets and PR security governance metadata
@@ -479,6 +523,8 @@ def emit_stage5_packaging_artifacts(
             manifest=manifest,
             release_artifacts=artifacts,
             execution_mode=execution_mode,
+            sandbox_enforced=sandbox_enforced,
+            sandbox_backend=sandbox_backend,
         )
     out_path = workspace_dir / "forge-release-artifacts.json"
     out_path.write_text(json.dumps(artifacts, indent=2) + "\n", encoding="utf-8")
@@ -496,14 +542,19 @@ def _execute_manifest_pipeline(
     execution_mode: str,
     agent_cmd: str,
     emit_oscal: bool = False,
+    sandbox_policy: str = "auto",
+    fixtures_dir: Path | None = None,
 ) -> dict[str, Any]:
     print(
         f"[Stage 2] Scaffolding locked FastMCP 4.x Golden Template in {output_dir} ...",
         file=sys.stderr,
     )
-    stage_workspace(golden_template_dir, output_dir, manifest)
+    stage_workspace(golden_template_dir, output_dir, manifest, fixtures_dir=fixtures_dir)
 
     last_diagnostics: str | None = None
+    sandbox_enforced = execution_mode in {"docker", "local"}
+    sandbox_backend = "container" if execution_mode == "docker" else "deterministic-inproc"
+
     for attempt in range(1, MAX_HEAL_ITERATIONS + 1):
         print(
             f"[Stage 3] Running Coding Agent (Iteration {attempt}/{MAX_HEAL_ITERATIONS}) ...",
@@ -515,7 +566,14 @@ def _execute_manifest_pipeline(
         elif execution_mode == "agent":
             if attempt == 1:
                 synthesize_workspace_code(output_dir, manifest)
-            invoke_host_agent(output_dir, agent_cmd=agent_cmd, prompt_text=prompt)
+            sb_plan = invoke_host_agent(
+                output_dir,
+                agent_cmd=agent_cmd,
+                prompt_text=prompt,
+                sandbox_policy=sandbox_policy,
+            )
+            sandbox_enforced = sb_plan.enforced
+            sandbox_backend = sb_plan.backend
         else:
             invoke_sandboxed_agent(output_dir, agent_image=agent_image, prompt_text=prompt)
 
@@ -551,6 +609,8 @@ def _execute_manifest_pipeline(
         registry_prefix,
         emit_oscal=emit_oscal,
         execution_mode=execution_mode,
+        sandbox_enforced=sandbox_enforced,
+        sandbox_backend=sandbox_backend,
     )
 
 
@@ -568,6 +628,9 @@ def run_forge_pipeline(
     agent_cmd: str = "",
     max_output_fields: int = DEFAULT_MAX_OUTPUT_FIELDS,
     emit_oscal: bool = False,
+    workflows_path: Path | None = None,
+    sandbox_policy: str = "auto",
+    fixtures_dir: Path | None = None,
 ) -> dict[str, Any]:
     """Run all 5 stages of the MCP Server Forge pipeline."""
     print(f"[Stage 1] Normalizing {spec_path} -> forge-manifest.json ...", file=sys.stderr)
@@ -576,6 +639,7 @@ def run_forge_pipeline(
         server_name,
         tag_filter=tag_filter,
         max_output_fields=max_output_fields,
+        workflows_path=workflows_path,
     )
     artifacts = _execute_manifest_pipeline(
         manifest=manifest,
@@ -588,6 +652,8 @@ def run_forge_pipeline(
         execution_mode=execution_mode,
         agent_cmd=agent_cmd,
         emit_oscal=emit_oscal,
+        sandbox_policy=sandbox_policy,
+        fixtures_dir=fixtures_dir,
     )
     print(json.dumps(artifacts, indent=2))
     return artifacts
@@ -606,13 +672,19 @@ def run_sharded_forge_pipeline(
     agent_cmd: str = "",
     max_output_fields: int = DEFAULT_MAX_OUTPUT_FIELDS,
     emit_oscal: bool = False,
+    workflows_path: Path | None = None,
+    toolset_budget: int = MAX_TOOLS_PER_SERVER,
+    sandbox_policy: str = "auto",
+    fixtures_dir: Path | None = None,
 ) -> dict[str, Any]:
-    """Partition an OpenAPI spec by tag into <=15-tool shards and forge every shard."""
+    """Partition an OpenAPI spec by tag into <=toolset_budget shards and client profiles."""
     print(f"[Stage 1] Planning domain shards for {spec_path} ...", file=sys.stderr)
     shard_manifests = plan_openapi_shards(
         spec_path=spec_path,
         base_server_name=server_name,
         max_output_fields=max_output_fields,
+        workflows_path=workflows_path,
+        toolset_budget=toolset_budget,
     )
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -635,6 +707,8 @@ def run_sharded_forge_pipeline(
             execution_mode=execution_mode,
             agent_cmd=agent_cmd,
             emit_oscal=emit_oscal,
+            sandbox_policy=sandbox_policy,
+            fixtures_dir=fixtures_dir,
         )
         merged_mcp_servers.update(shard_art["client_config"]["mcpServers"])
         gov = shard_art["governance"]
@@ -649,11 +723,20 @@ def run_sharded_forge_pipeline(
             }
         )
 
+    client_profiles = build_client_profiles(
+        shard_manifests,
+        merged_mcp_servers,
+        suite_name=server_name,
+        toolset_budget=toolset_budget,
+    )
+
     suite_artifacts: dict[str, Any] = {
         "protocol_revision": "2026-07-28",
         "suite_name": server_name,
+        "toolset_budget": toolset_budget,
         "total_shards": len(shard_reports),
         "shards": shard_reports,
+        "client_profiles": client_profiles,
         "client_config": {"mcpServers": merged_mcp_servers},
         "governance": {
             "required_labels": ["needs-security-review", "mcp-2026-07-28"],
@@ -676,6 +759,12 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--spec", type=Path, required=True, help="OpenAPI 3.x YAML/JSON file")
     parser.add_argument("--name", type=str, required=True, help="Kebab-case MCP server name")
     parser.add_argument("--tag-filter", type=str, default=None, help="Optional OpenAPI tag slice")
+    parser.add_argument(
+        "--workflows",
+        type=Path,
+        default=None,
+        help="Optional sidecar forge-workflows.yaml / .json for composite workflow tools",
+    )
     parser.add_argument("--template-dir", type=Path, default=Path("./golden-template"))
     parser.add_argument("--prompt-file", type=Path, default=Path("./forge/AGENT_SYSTEM_PROMPT.md"))
     parser.add_argument("--output-dir", type=Path, required=True)
@@ -689,6 +778,12 @@ def main(argv: list[str] | None = None) -> None:
         help="Maximum high-signal fields projected per tool outputSchema (1..20, default 8)",
     )
     parser.add_argument(
+        "--toolset-budget",
+        type=int,
+        default=MAX_TOOLS_PER_SERVER,
+        help="Maximum active tools per shard and client profile (1..15, default 15)",
+    )
+    parser.add_argument(
         "--execution-mode",
         choices=("docker", "local", "agent"),
         default="docker",
@@ -699,6 +794,18 @@ def main(argv: list[str] | None = None) -> None:
         type=str,
         default="",
         help="Host CLI command for --execution-mode agent ({prompt_file}, {workspace})",
+    )
+    parser.add_argument(
+        "--sandbox-policy",
+        choices=("auto", "required", "off"),
+        default="auto",
+        help="OS kernel sandbox policy for --execution-mode agent (default: auto)",
+    )
+    parser.add_argument(
+        "--fixtures-dir",
+        type=Path,
+        default=None,
+        help="Optional directory of recorded upstream JSON fixtures for schema drift replay",
     )
     parser.add_argument(
         "--auto-split-tags",
@@ -732,6 +839,10 @@ def main(argv: list[str] | None = None) -> None:
             agent_cmd=args.agent_cmd,
             max_output_fields=args.max_output_fields,
             emit_oscal=args.emit_oscal,
+            workflows_path=args.workflows,
+            toolset_budget=args.toolset_budget,
+            sandbox_policy=args.sandbox_policy,
+            fixtures_dir=args.fixtures_dir,
         )
     else:
         run_forge_pipeline(
@@ -748,6 +859,9 @@ def main(argv: list[str] | None = None) -> None:
             agent_cmd=args.agent_cmd,
             max_output_fields=args.max_output_fields,
             emit_oscal=args.emit_oscal,
+            workflows_path=args.workflows,
+            sandbox_policy=args.sandbox_policy,
+            fixtures_dir=args.fixtures_dir,
         )
 
 

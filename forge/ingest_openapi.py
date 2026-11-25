@@ -14,6 +14,7 @@ from typing import Any
 import yaml
 
 from forge.projection import flatten_composed_schema
+from forge.workflows import compile_workflows, load_workflows_definitions
 
 MAX_TOOLS_PER_SERVER = 15
 DEFAULT_MAX_OUTPUT_FIELDS = 8
@@ -530,6 +531,8 @@ def _collect_normalized_tools(
                 tool_entry["x_mcp_fields"] = x_mcp_fields
             if auth_override is not None:
                 tool_entry["auth_scheme"] = auth_override
+            if isinstance(op.get("operationId"), str) and op["operationId"].strip():
+                tool_entry["operation_id"] = op["operationId"].strip()
 
             collected.append((primary_tag, tool_entry))
 
@@ -554,11 +557,19 @@ def _assemble_manifest(
     base_title = str(info.get("title", server_name))
     title = f"{base_title} ({title_suffix})" if title_suffix else base_title
 
-    used_schemes = {
-        str(t["auth_scheme"])
-        for t in tools
-        if isinstance(t.get("auth_scheme"), str) and str(t["auth_scheme"]).lower() != "none"
-    }
+    used_schemes: set[str] = set()
+    for t in tools:
+        if isinstance(t.get("auth_scheme"), str) and str(t["auth_scheme"]).lower() != "none":
+            used_schemes.add(str(t["auth_scheme"]))
+        wf_meta = t.get("workflow")
+        if isinstance(wf_meta, dict):
+            for step in wf_meta.get("steps", []):
+                if (
+                    isinstance(step, dict)
+                    and isinstance(step.get("auth_scheme"), str)
+                    and str(step["auth_scheme"]).lower() != "none"
+                ):
+                    used_schemes.add(str(step["auth_scheme"]))
     pruned_schemes = {k: named_cfgs[k] for k in sorted(used_schemes) if k in named_cfgs}
 
     manifest: dict[str, Any] = {
@@ -583,11 +594,24 @@ def _assemble_manifest(
     return manifest
 
 
+def _build_operation_lookup(
+    all_tagged_tools: list[tuple[str, dict[str, Any]]],
+) -> dict[str, tuple[str, dict[str, Any]]]:
+    lookup: dict[str, tuple[str, dict[str, Any]]] = {}
+    for tag, tool_entry in all_tagged_tools:
+        lookup[str(tool_entry["name"])] = (tag, tool_entry)
+        raw_op_id = tool_entry.get("operation_id")
+        if isinstance(raw_op_id, str) and raw_op_id:
+            lookup[raw_op_id] = (tag, tool_entry)
+    return lookup
+
+
 def normalize_openapi_to_manifest(
     spec_path: Path,
     server_name: str,
     tag_filter: str | None = None,
     max_output_fields: int = DEFAULT_MAX_OUTPUT_FIELDS,
+    workflows_path: Path | None = None,
 ) -> dict[str, Any]:
     """Parse an OpenAPI 3.x file into a deterministic forge-manifest.json dictionary."""
     if not (MIN_MAX_OUTPUT_FIELDS <= max_output_fields <= MAX_MAX_OUTPUT_FIELDS):
@@ -602,16 +626,42 @@ def normalize_openapi_to_manifest(
         resolved_spec, env_prefix
     )
 
-    tagged_tools = _collect_normalized_tools(
+    all_tagged_tools = _collect_normalized_tools(
         resolved_spec,
         env_prefix=env_prefix,
         default_scheme_name=default_scheme_name,
         default_cfg=default_cfg,
         named_cfgs=named_cfgs,
         raw_schemes=raw_schemes,
-        tag_filter=tag_filter,
+        tag_filter=None,
         max_output_fields=max_output_fields,
     )
+    tagged_tools = (
+        _collect_normalized_tools(
+            resolved_spec,
+            env_prefix=env_prefix,
+            default_scheme_name=default_scheme_name,
+            default_cfg=default_cfg,
+            named_cfgs=named_cfgs,
+            raw_schemes=raw_schemes,
+            tag_filter=tag_filter,
+            max_output_fields=max_output_fields,
+        )
+        if tag_filter
+        else all_tagged_tools
+    )
+
+    raw_workflows = load_workflows_definitions(resolved_spec, workflows_path)
+    if raw_workflows:
+        wf_tagged = compile_workflows(
+            raw_workflows,
+            _build_operation_lookup(all_tagged_tools),
+            existing_tool_names={str(t["name"]) for _, t in tagged_tools},
+            tag_filter=tag_filter,
+            max_output_fields=max_output_fields,
+        )
+        tagged_tools = [*tagged_tools, *wf_tagged]
+
     tools = [t for _, t in tagged_tools]
 
     if not tools:
@@ -636,12 +686,18 @@ def plan_openapi_shards(
     spec_path: Path,
     base_server_name: str,
     max_output_fields: int = DEFAULT_MAX_OUTPUT_FIELDS,
+    workflows_path: Path | None = None,
+    toolset_budget: int = MAX_TOOLS_PER_SERVER,
 ) -> list[dict[str, Any]]:
-    """Partition an OpenAPI 3.x spec by tag (and <=15-tool chunks) into shard manifests."""
+    """Partition an OpenAPI 3.x spec by tag (and <=toolset_budget chunks) into shard manifests."""
     if not (MIN_MAX_OUTPUT_FIELDS <= max_output_fields <= MAX_MAX_OUTPUT_FIELDS):
         raise SpecNormalizationError(
             f"max_output_fields must be between {MIN_MAX_OUTPUT_FIELDS} and "
             f"{MAX_MAX_OUTPUT_FIELDS}, got {max_output_fields}."
+        )
+    if not (1 <= toolset_budget <= MAX_TOOLS_PER_SERVER):
+        raise SpecNormalizationError(
+            f"toolset_budget must be between 1 and {MAX_TOOLS_PER_SERVER}, got {toolset_budget}."
         )
 
     resolved_spec = _load_resolved_spec(spec_path)
@@ -660,6 +716,17 @@ def plan_openapi_shards(
         tag_filter=None,
         max_output_fields=max_output_fields,
     )
+    raw_workflows = load_workflows_definitions(resolved_spec, workflows_path)
+    if raw_workflows:
+        wf_tagged = compile_workflows(
+            raw_workflows,
+            _build_operation_lookup(tagged_tools),
+            existing_tool_names={str(t["name"]) for _, t in tagged_tools},
+            tag_filter=None,
+            max_output_fields=max_output_fields,
+        )
+        tagged_tools = [*tagged_tools, *wf_tagged]
+
     if not tagged_tools:
         raise SpecNormalizationError("Zero HTTP operations matched in the OpenAPI specification.")
 
@@ -674,13 +741,13 @@ def plan_openapi_shards(
     for slug in sorted(by_slug.keys()):
         group = by_slug[slug]
         label = slug_labels[slug]
-        if len(group) <= MAX_TOOLS_PER_SERVER:
+        if len(group) <= toolset_budget:
             raw_shards.append((slug, label, group))
         else:
-            total_parts = (len(group) + MAX_TOOLS_PER_SERVER - 1) // MAX_TOOLS_PER_SERVER
+            total_parts = (len(group) + toolset_budget - 1) // toolset_budget
             for part_idx in range(total_parts):
-                start = part_idx * MAX_TOOLS_PER_SERVER
-                chunk = group[start : start + MAX_TOOLS_PER_SERVER]
+                start = part_idx * toolset_budget
+                chunk = group[start : start + toolset_budget]
                 raw_shards.append(
                     (f"{slug}-part{part_idx + 1}", f"{label} part {part_idx + 1}", chunk)
                 )
@@ -724,6 +791,12 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--name", type=str, required=True, help="Kebab-case MCP server name")
     parser.add_argument("--tag-filter", type=str, default=None, help="Optional OpenAPI tag slice")
     parser.add_argument(
+        "--workflows",
+        type=Path,
+        default=None,
+        help="Optional sidecar forge-workflows.yaml / .json for composite @tool joins",
+    )
+    parser.add_argument(
         "--max-output-fields",
         type=int,
         default=DEFAULT_MAX_OUTPUT_FIELDS,
@@ -742,6 +815,7 @@ def main(argv: list[str] | None = None) -> None:
         server_name=args.name,
         tag_filter=args.tag_filter,
         max_output_fields=args.max_output_fields,
+        workflows_path=args.workflows,
     )
     serialized = json.dumps(manifest, indent=2) + "\n"
     if args.output is not None:

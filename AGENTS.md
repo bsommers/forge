@@ -21,7 +21,7 @@
 - **Refresh live build dashboard snapshot:** `.venv/bin/python dashboard/telemetry.py --once`
 
 ## 3. Architecture Map
-- `forge/` — Host pipeline: `ingest_openapi.py` (Stage 1 normalizer + `2xx` `response_schema`/`x-mcp-fields`), `projection.py` (deterministic high-signal field ranker), `codegen.py` (local projected tool/test synthesizer), `orchestrator.py` (Stages 2–5 Docker, `--local`, & SHA-256-guarded `--execution-mode agent` runner), `AGENT_SYSTEM_PROMPT.md`.
+- `forge/` — Host pipeline: `ingest_openapi.py` (Stage 1 normalizer + cycle-safe/relative `$ref`s + `x-mcp-workflows`), `projection.py` (deterministic high-signal field ranker + `allOf`/`oneOf` flattening), `workflows.py` (DAG multi-endpoint workflow compiler + `client_profiles` budgeter), `codegen.py` (local projected tool, workflow, & test synthesizer), `sandbox.py` (macOS `sandbox-exec` / Linux `bwrap` host-agent kernel confinement), `oscal_attestation.py` (Stage 5 OSCAL `1.1.2` SSP/SAR/POA&M emitter), `orchestrator.py` (Stages 2–5 Docker, `--local`, & kernel-sandboxed `--execution-mode agent` runner), `AGENT_SYSTEM_PROMPT.md`.
 - `golden-template/` — Immutable Golden Template baseline cloned during Stage 2 (`stage_workspace`).
 - `src/` — Active forged FastMCP server: `auth.py` (env-bound `httpx.Auth`), `deps.py` (`Depends(get_http_client)` + `request_json`), `server.py` (`FileSystemProvider` + `ForgeResponseLimitingMiddleware`), `tools/*.py` (stateless domain `@tool` modules).
 - `respx/` — First-party strictly-typed offline `httpx` transport mock package used by contract and unit suites.

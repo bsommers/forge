@@ -24,6 +24,7 @@ Stage 1 OpenAPI 3.x YAML/JSON normalizer.
 | `--spec` | `Path` | Yes | — | Path to OpenAPI 3.x `.yaml`, `.yml`, or `.json` specification |
 | `--name` | `str` | Yes | — | Kebab-case MCP server identifier (e.g., `acme-incidents`) |
 | `--tag-filter` | `str` | No | `None` | Include only operations tagged with `<tag>` |
+| `--workflows` | `Path` | No | `None` | Optional `forge-workflows.yaml`/`.json` sidecar compiling multi-endpoint `@tool` joins |
 | `--max-output-fields` | `int` | No | `8` | Maximum high-signal fields projected per tool `outputSchema` (`1..20`) |
 | `--output` | `Path` | No | `stdout` | Destination file path for `forge-manifest.json` |
 
@@ -39,12 +40,17 @@ Stages 1–5 end-to-end self-healing orchestrator.
 | `--name` | `str` | Yes | — | Kebab-case MCP server name |
 | `--output-dir` | `Path` | Yes | — | Target directory for the generated FastMCP server repo |
 | `--tag-filter` | `str` | No | `None` | Optional OpenAPI tag slice (`<= 15` tools) |
+| `--workflows` | `Path` | No | `None` | Optional `forge-workflows.yaml`/`.json` sidecar for composite multi-call `@tool` joins |
 | `--template-dir` | `Path` | No | `./golden-template` | Source Golden Template directory |
 | `--prompt-file` | `Path` | No | `./forge/AGENT_SYSTEM_PROMPT.md` | System prompt injected into Stage 3 coding agent |
 | `--max-output-fields` | `int` | No | `8` | Maximum high-signal fields projected per tool `outputSchema` (`1..20`) |
-| `--execution-mode` | `docker\|local\|agent` | No | `docker` | `docker` (containers), `local` (deterministic projection), or `agent` (host CLI + SHA-256 lock guard) |
+| `--toolset-budget` | `int` | No | `15` | Maximum active tools per shard and emitted `client_profiles` entry (`1..15`) |
+| `--execution-mode` | `docker\|local\|agent` | No | `docker` | `docker` (containers), `local` (deterministic projection), or `agent` (host CLI + kernel sandbox + SHA-256 lock guard) |
 | `--agent-cmd` | `str` | No | `""` | Host CLI command template for `--execution-mode agent` (`{prompt_file}`, `{workspace}`) |
-| `--auto-split-tags` | `bool` | No | `False` | Partition `> 15`-tool OpenAPI specs by tag into `<= 15`-tool server shards + `forge-suite-artifacts.json` |
+| `--sandbox-policy` | `auto\|required\|off` | No | `auto` | OS kernel sandbox policy (`sandbox-exec` on macOS, `bwrap` on Linux) for `--execution-mode agent` |
+| `--fixtures-dir` | `Path` | No | `None` | Optional directory of recorded upstream JSON fixtures replayed against schemas in Stage 4 |
+| `--auto-split-tags` | `bool` | No | `False` | Partition `> 15`-tool OpenAPI specs by tag into `<= 15`-tool server shards + `client_profiles` |
+| `--emit-oscal` | `bool` | No | `False` | Emit deterministic NIST OSCAL `1.1.2` `SSP`, `SAR`, `POA&M`, and `SSP.md` during Stage 5 |
 | `--local` | `bool` | No | `False` | Shorthand alias for `--execution-mode local` |
 | `--agent-image` | `str` | No | `mcp-forge-agent:latest` | Docker image for Stage 3 coding agent |
 | `--validator-image` | `str` | No | `mcp-forge-validator:latest` | Docker image for `--network=none` Stage 4 validation |

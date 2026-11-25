@@ -33,16 +33,29 @@ def _require_env(env_name: str) -> str:
     return value
 
 
-def iter_manifest_auth_env_vars(manifest: dict[str, Any]) -> list[str]:
-    """Return all server-bound credential env var names required by active auth schemes."""
-    tools = manifest.get("tools", [])
-    used_schemes: set[str] = set()
-    needs_default = not tools
-
-    for tool in tools:
+def _iter_manifest_route_entries(manifest: dict[str, Any]) -> list[dict[str, Any]]:
+    entries: list[dict[str, Any]] = []
+    for tool in manifest.get("tools", []):
         if not isinstance(tool, dict):
             continue
-        scheme = tool.get("auth_scheme")
+        wf_meta = tool.get("workflow")
+        if isinstance(wf_meta, dict) and isinstance(wf_meta.get("steps"), list):
+            for step in wf_meta["steps"]:
+                if isinstance(step, dict):
+                    entries.append(step)
+        else:
+            entries.append(tool)
+    return entries
+
+
+def iter_manifest_auth_env_vars(manifest: dict[str, Any]) -> list[str]:
+    """Return all server-bound credential env var names required by active auth schemes."""
+    route_entries = _iter_manifest_route_entries(manifest)
+    used_schemes: set[str] = set()
+    needs_default = not route_entries
+
+    for entry in route_entries:
+        scheme = entry.get("auth_scheme")
         if isinstance(scheme, str) and scheme:
             if scheme.lower() != "none":
                 used_schemes.add(scheme)
@@ -240,22 +253,20 @@ def build_auth_handler(auth_cfg: dict[str, Any]) -> httpx.Auth | None:
 
 def build_auth_from_manifest(manifest: dict[str, Any]) -> httpx.Auth | None:
     auth_cfg: dict[str, Any] = manifest.get("auth", {"type": "none"})
-    tools = manifest.get("tools", [])
+    route_entries = _iter_manifest_route_entries(manifest)
     raw_schemes = manifest.get("auth_schemes", {})
     named_cfgs: dict[str, Any] = raw_schemes if isinstance(raw_schemes, dict) else {}
 
     scored_overrides: list[tuple[int, str, re.Pattern[str], str]] = []
     referenced_schemes: set[str] = set()
-    needs_default = not tools
+    needs_default = not route_entries
 
-    for tool in tools:
-        if not isinstance(tool, dict):
-            continue
-        scheme = tool.get("auth_scheme")
+    for entry in route_entries:
+        scheme = entry.get("auth_scheme")
         if isinstance(scheme, str) and scheme:
-            static_score, pattern = compile_path_template(str(tool.get("path", "/")))
+            static_score, pattern = compile_path_template(str(entry.get("path", "/")))
             scored_overrides.append(
-                (static_score, str(tool.get("method", "GET")).upper(), pattern, scheme)
+                (static_score, str(entry.get("method", "GET")).upper(), pattern, scheme)
             )
             if scheme.lower() != "none":
                 referenced_schemes.add(scheme)

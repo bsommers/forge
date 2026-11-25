@@ -190,7 +190,7 @@ _CONTROL_MATRIX: tuple[_CtrlEntry, ...] = (
         "Process Isolation",
         "chassis",
         ("MCP-002", "MCP-008"),
-        "Container --cap-drop=ALL / non-root UID 65532 isolation (host seatbelt tracked in M5).",
+        "Container --cap-drop=ALL, UID 65532, and forge/sandbox.py seatbelt/bwrap host isolation.",
     ),
     _CtrlEntry(
         "si-7.1",
@@ -261,6 +261,8 @@ def emit_oscal_assurance_bundle(
     release_artifacts: dict[str, Any],
     *,
     execution_mode: str = "local",
+    sandbox_enforced: bool = True,
+    sandbox_backend: str = "deterministic-inproc",
 ) -> dict[str, Any]:
     """Emit OSCAL 1.1.2 Component Def, SSP, SAR, POA&M, and SSP.md; return assurance summary."""
     server_name = str(manifest["server_name"])
@@ -371,6 +373,7 @@ def emit_oscal_assurance_bundle(
                     },
                     {"name": "active-tool-count", "value": str(len(manifest.get("tools", [])))},
                     {"name": "execution-mode", "value": execution_mode},
+                    {"name": "sandbox-backend", "value": sandbox_backend},
                 ],
             },
             "system-implementation": {
@@ -405,28 +408,29 @@ def emit_oscal_assurance_bundle(
         }
     }
 
-    # SC-5 is now 'satisfied' in v1.4.0 thanks to dual-axis bounding (W4.4 closed!).
-    # SC-39 is 'satisfied' in Docker mode, or 'partially-satisfied' (POAM-FORGE-W5.2) on host.
+    # SC-5 (W4.4) and SC-39 (W5.2) are 'satisfied' when isolation/bounding is active.
+    # SC-39 drops to 'partially-satisfied' (POAM-FORGE-W5.2) only if host agent disables sandbox.
     findings: list[dict[str, Any]] = []
     poam_items: list[dict[str, Any]] = []
+    sc39_isolated = execution_mode in {"docker", "local"} or sandbox_enforced
 
     for c in _CONTROL_MATRIX:
         if c.human_only:
             state = "other-than-satisfied"
             assessor = "human-attestation-pending"
             desc = "Awaiting named organizational official signoff; LLM self-grading prohibited."
-        elif c.oscal_id == "sc-39" and execution_mode != "docker":
+        elif c.oscal_id == "sc-39" and not sc39_isolated:
             state = "partially-satisfied"
             assessor = "automated-gate"
             desc = (
-                "Tracked in POAM-FORGE-W5.2: host synthesis uses 0444 + SHA-256 restore; "
-                "OS seatbelt/bwrap scheduled in Milestone M5."
+                "Tracked in POAM-FORGE-W5.2: host agent invoked without OS kernel sandbox "
+                f"(backend={sandbox_backend}); 0444 + SHA-256 restore active."
             )
             poam_items.append(
                 {
                     "uuid": _det_uuid(f"poam:{server_name}:POAM-FORGE-W5.2"),
-                    "title": "POAM-FORGE-W5.2 (SC-39): Host OS Kernel Sandboxing",
-                    "description": "Scheduled in Milestone M5 (v2.0.0).",
+                    "title": "POAM-FORGE-W5.2 (SC-39): Host OS Kernel Sandboxing Disabled",
+                    "description": "Re-enable --sandbox-policy=auto|required or run in Docker.",
                     "props": [
                         {"name": "gap-id", "value": "POAM-FORGE-W5.2"},
                         {"name": "control-id", "value": "sc-39"},

@@ -438,8 +438,320 @@ def _helper_functions_needed(
     return helpers
 
 
+def _workflow_binding_expr(binding: dict[str, Any]) -> str:
+    kind = str(binding["kind"])
+    if kind == "input_ref":
+        return str(binding["input_name"])
+    if kind == "literal":
+        return _py_literal(binding.get("value"), indent=0)
+    src_step = json.dumps(str(binding["source_step"]))
+    path_tuple = ", ".join(json.dumps(str(seg)) for seg in binding["source_path"])
+    return f"_step_get(step_results[{src_step}], ({path_tuple},))"
+
+
+def _render_workflow_step_call(
+    step: dict[str, Any],
+    *,
+    indent: int,
+) -> tuple[list[str], list[str]]:
+    """Return (prep_lines, request_json_lines) for a single workflow step."""
+    pad = " " * indent
+    step_id = str(step["id"])
+    method = str(step["method"]).upper()
+    raw_path = str(step["path"])
+    bindings: list[dict[str, Any]] = list(step.get("bindings", []))
+
+    prep_lines: list[str] = []
+    path_expr = raw_path
+    has_interp = False
+    query_entries: list[tuple[str, str]] = []
+    body_entries: list[tuple[str, str]] = []
+
+    for b in bindings:
+        loc = str(b["in"])
+        p_name = str(b["param_name"])
+        w_name = str(b["wire_name"])
+        expr = _workflow_binding_expr(b)
+        if loc == "path" or f"{{{w_name}}}" in path_expr or f"{{{p_name}}}" in path_expr:
+            var_name = f"_p_{step_id}_{p_name}"
+            prep_lines.append(f'    {var_name} = str({expr} or "id")')
+            path_expr = path_expr.replace(f"{{{w_name}}}", f"{{{var_name}}}").replace(
+                f"{{{p_name}}}", f"{{{var_name}}}"
+            )
+            has_interp = True
+        elif loc == "body":
+            body_entries.append((w_name, expr))
+        else:
+            query_entries.append((w_name, expr))
+
+    url_lit = f'f"{path_expr}"' if has_interp or "{" in path_expr else json.dumps(path_expr)
+    req_lines = [
+        f"{pad}request_json(",
+        f"{pad}    client,",
+        f'{pad}    "{method}",',
+        f"{pad}    {url_lit},",
+    ]
+    if query_entries:
+        req_lines.append(f"{pad}    params={{")
+        for wk, wexpr in query_entries:
+            req_lines.append(f"{pad}        {json.dumps(wk)}: {wexpr},")
+        req_lines.append(f"{pad}    }},")
+    if body_entries:
+        req_lines.append(f"{pad}    json_body={{")
+        for bk, bexpr in body_entries:
+            req_lines.append(f"{pad}        {json.dumps(bk)}: {bexpr},")
+        req_lines.append(f"{pad}    }},")
+    req_lines.append(f"{pad})")
+    return prep_lines, req_lines
+
+
+def _render_workflow_proj_expr(pf: dict[str, Any]) -> str:
+    src_step = json.dumps(str(pf["source_step"]))
+    src_path = [str(seg) for seg in pf["source_path"]]
+    path_tuple = ", ".join(json.dumps(seg) for seg in src_path)
+    py_t = str(pf["py_type"])
+
+    if py_t == "list[dict[str, Any]]" and len(src_path) == 1:
+        return f"_step_dict_list(step_results[{src_step}], {json.dumps(src_path[0])})"
+    raw_expr = f"_step_get(step_results[{src_step}], ({path_tuple},))"
+    if py_t == "list[dict[str, Any]]":
+        return f"_as_dict_list({raw_expr})"
+    if py_t == "list[str]":
+        return f"_as_str_list({raw_expr})"
+    if py_t == "list[int]":
+        return f"_as_int_list({raw_expr})"
+    if py_t == "list[float]":
+        return f"_as_float_list({raw_expr})"
+    if py_t == "int":
+        return f"int({raw_expr} or 0)"
+    if py_t == "float":
+        return f"float({raw_expr} or 0.0)"
+    if py_t == "bool":
+        return f"bool({raw_expr})"
+    return f'str({raw_expr} or "")'
+
+
+def render_workflow_tool_module(tool_spec: dict[str, Any]) -> str:
+    """Synthesize a composite multi-call FastMCP 4.x workflow @tool module (Pattern MCP-005)."""
+    name = str(tool_spec["name"])
+    title = str(tool_spec.get("title") or name.replace("_", " ").title())[:70]
+    description = _sanitize_docstring(str(tool_spec.get("description") or f"Workflow {name}"))
+    ann = tool_spec.get("annotations", {})
+    read_only = bool(ann.get("readOnlyHint", True))
+    destructive = bool(ann.get("destructiveHint", False))
+    idempotent = bool(ann.get("idempotentHint", True))
+    open_world = bool(ann.get("openWorldHint", True))
+
+    pascal = _to_pascal_case(name)
+    model_name = f"{pascal}Response"
+    params = _collect_tool_params(tool_spec)
+    wf_meta: dict[str, Any] = dict(tool_spec["workflow"])
+    steps_by_id = {str(s["id"]): s for s in wf_meta["steps"]}
+    waves: list[list[str]] = list(wf_meta["waves"])
+    proj_fields: list[dict[str, Any]] = list(wf_meta["project"])
+
+    needs_gather = any(len(w) > 1 for w in waves)
+    needs_literal = any("Literal[" in _python_type_and_default(p, pascal)[0] for p in params)
+
+    typing_syms = ["Any"]
+    if params:
+        typing_syms.append("Annotated")
+    if needs_literal:
+        typing_syms.append("Literal")
+
+    lines: list[str] = ["from __future__ import annotations", ""]
+    if needs_gather:
+        lines.append("import asyncio")
+    lines.extend(
+        [
+            f"from typing import {', '.join(sorted(typing_syms))}",
+            "",
+            "from fastmcp.tools import tool",
+            "from mcp.types import ToolAnnotations",
+            "from pydantic import BaseModel, Field",
+            "",
+            "from src.deps import ApiClient, request_json",
+            "",
+            "",
+            "def _step_dict(raw: Any) -> dict[str, Any]:",
+            '    return dict(raw) if isinstance(raw, dict) else {"items": raw}',
+            "",
+            "",
+            "def _step_get(data: dict[str, Any], path: tuple[str, ...]) -> Any:",
+            "    cur: Any = data",
+            "    for key in path:",
+            "        if not isinstance(cur, dict):",
+            "            return None",
+            "        cur = cur.get(key)",
+            "    return cur",
+            "",
+            "",
+        ]
+    )
+
+    py_types = {str(pf["py_type"]) for pf in proj_fields}
+    if any(
+        str(pf["py_type"]) == "list[dict[str, Any]]" and len(pf["source_path"]) == 1
+        for pf in proj_fields
+    ):
+        lines.extend(
+            [
+                "def _step_dict_list(data: dict[str, Any], key: str) -> list[dict[str, Any]]:",
+                "    cand = data.get(key)",
+                "    if not isinstance(cand, list):",
+                "        cand = next((v for v in data.values() if isinstance(v, list)), [])",
+                "    return [dict(x) for x in cand if isinstance(x, dict)]",
+                "",
+                "",
+            ]
+        )
+    if any(
+        str(pf["py_type"]) == "list[dict[str, Any]]" and len(pf["source_path"]) > 1
+        for pf in proj_fields
+    ):
+        lines.extend(
+            [
+                "def _as_dict_list(val: Any) -> list[dict[str, Any]]:",
+                "    return [dict(x) for x in val if isinstance(x, dict)]"
+                " if isinstance(val, list) else []",
+                "",
+                "",
+            ]
+        )
+    if "list[str]" in py_types:
+        lines.extend(
+            [
+                "def _as_str_list(val: Any) -> list[str]:",
+                "    return [str(x) for x in val] if isinstance(val, list) else []",
+                "",
+                "",
+            ]
+        )
+    if "list[int]" in py_types:
+        lines.extend(
+            [
+                "def _as_int_list(val: Any) -> list[int]:",
+                "    return [int(x) for x in val] if isinstance(val, list) else []",
+                "",
+                "",
+            ]
+        )
+    if "list[float]" in py_types:
+        lines.extend(
+            [
+                "def _as_float_list(val: Any) -> list[float]:",
+                "    return [float(x) for x in val] if isinstance(val, list) else []",
+                "",
+                "",
+            ]
+        )
+
+    lines.extend(
+        [
+            f"class {model_name}(BaseModel):",
+            f'    """Unified projected output for composite workflow {name}."""',
+            "",
+        ]
+    )
+    for pf in proj_fields:
+        desc_j = json.dumps(_sanitize_docstring(str(pf["description"]))[:64])
+        if pf["default_repr"] == "[]":
+            lines.extend(
+                [
+                    f"    {pf['name']}: {pf['py_type']} = Field(",
+                    "        default_factory=list,",
+                    f"        description={desc_j},",
+                    "    )",
+                ]
+            )
+        else:
+            lines.extend(
+                [
+                    f"    {pf['name']}: {pf['py_type']} = Field(",
+                    f"        default={pf['default_repr']},",
+                    f"        description={desc_j},",
+                    "    )",
+                ]
+            )
+    lines.extend(
+        [
+            "",
+            "",
+            "@tool(",
+            f"    name={json.dumps(name)},",
+            f"    title={json.dumps(title)},",
+            "    annotations=ToolAnnotations(",
+            f"        read_only_hint={read_only},",
+            f"        destructive_hint={destructive},",
+            f"        idempotent_hint={idempotent},",
+            f"        open_world_hint={open_world},",
+            "    ),",
+            ")",
+            f"async def {name}(",
+            "    client: ApiClient,",
+        ]
+    )
+
+    for p in params:
+        p_name = p["name"]
+        py_type, default_repr, _ = _python_type_and_default(p, pascal)
+        desc_json = json.dumps(p["description"])
+        lines.append(f"    {p_name}: Annotated[")
+        lines.append(f"        {py_type},")
+        lines.append("        Field(")
+        if default_repr is not None:
+            lines.append(f"            default={default_repr},")
+        lines.append(f"            description={desc_json},")
+        lines.append("        ),")
+        if default_repr is not None:
+            lines.append(f"    ] = {default_repr},")
+        else:
+            lines.append("    ],")
+
+    lines.extend(
+        [
+            f") -> {model_name}:",
+            f'    """{description}"""',
+            "    step_results: dict[str, dict[str, Any]] = {}",
+        ]
+    )
+
+    for w_idx, wave in enumerate(waves):
+        if len(wave) == 1:
+            sid = wave[0]
+            prep, req = _render_workflow_step_call(steps_by_id[sid], indent=8)
+            lines.extend(prep)
+            lines.append(f"    step_results[{json.dumps(sid)}] = _step_dict(")
+            lines.append(f"        await {req[0].lstrip()}")
+            lines.extend(req[1:])
+            lines.append("    )")
+        else:
+            all_reqs: list[list[str]] = []
+            for sid in wave:
+                prep, req = _render_workflow_step_call(steps_by_id[sid], indent=8)
+                lines.extend(prep)
+                req[-1] = req[-1] + ","
+                all_reqs.append(req)
+            var_names = [f"_w{w_idx}_{i}" for i in range(len(wave))]
+            lines.append(f"    {', '.join(var_names)} = await asyncio.gather(")
+            for req in all_reqs:
+                lines.extend(req)
+            lines.append("    )")
+            for i, sid in enumerate(wave):
+                lines.append(f"    step_results[{json.dumps(sid)}] = _step_dict({var_names[i]})")
+
+    lines.append(f"    return {model_name}(")
+    for pf in proj_fields:
+        lines.append(f"        {pf['name']}={_render_workflow_proj_expr(pf)},")
+    lines.append("    )")
+    lines.append("")
+    return "\n".join(lines)
+
+
 def render_tool_module(tool_spec: dict[str, Any]) -> str:
     """Synthesize a strict-typed FastMCP 4.2 tool module for src/tools/<name>.py."""
+    if isinstance(tool_spec.get("workflow"), dict):
+        return render_workflow_tool_module(tool_spec)
     name = str(tool_spec["name"])
     title = str(tool_spec.get("title") or name.replace("_", " ").title())[:70]
     method = str(tool_spec.get("method", "GET")).upper()
@@ -778,9 +1090,60 @@ def render_unit_tests(manifest: dict[str, Any]) -> str:
             _, _, sample_val = _python_type_and_default(p, t_pascal)
             sample_args[p["name"]] = sample_val
 
+        args_literal = _py_literal(sample_args, indent=4)
+
+        if isinstance(tool_spec.get("workflow"), dict):
+            wf_proj: list[dict[str, Any]] = list(tool_spec["workflow"]["project"])
+            merged_step_body: dict[str, Any] = {"id": "INC-1"}
+            for pf in wf_proj:
+                spath = [str(s) for s in pf["source_path"]]
+                sval = pf.get("sample", "val-1")
+                if len(spath) == 1:
+                    merged_step_body[spath[0]] = sval
+                else:
+                    cur_d = merged_step_body
+                    for seg in spath[:-1]:
+                        nxt = cur_d.get(seg)
+                        if not isinstance(nxt, dict):
+                            nxt = {}
+                            cur_d[seg] = nxt
+                        cur_d = nxt
+                    cur_d[spath[-1]] = sval
+            step_lit = _py_literal(merged_step_body, indent=4)
+            lines.extend(
+                [
+                    "",
+                    "@respx.mock",
+                    f"async def test_{t_name}_workflow_happy_and_error_paths() -> None:",
+                    f"    args: dict[str, object] = {args_literal}",
+                    f"    step_body: dict[str, object] = {step_lit}",
+                    "    async with Client(mcp) as client:",
+                    "        respx.route().mock(return_value=httpx.Response(200, json=step_body))",
+                    f'        result = await client.call_tool("{t_name}", args)',
+                    "        assert result.is_error is False",
+                    "        assert result.structured_content is not None",
+                    "",
+                    '        list_mock = httpx.Response(200, json=[{"id": "evt-1"}])',
+                    "        respx.route().mock(return_value=list_mock)",
+                    f'        list_res = await client.call_tool("{t_name}", args)',
+                    "        assert list_res.is_error is False",
+                    "",
+                    "        respx.route().mock(return_value=httpx.Response(200, json={}))",
+                    f'        sparse_res = await client.call_tool("{t_name}", args)',
+                    "        assert sparse_res.is_error is False",
+                    "",
+                    "        for status_code in (401, 404, 429, 500):",
+                    '            err = httpx.Response(status_code, json={"error": "failed"})',
+                    "            respx.route().mock(return_value=err)",
+                    "            with pytest.raises(ToolError):",
+                    f'                await client.call_tool("{t_name}", args)',
+                    "",
+                ]
+            )
+            continue
+
         projection = _projection_for_tool(tool_spec)
         item_payload = _sample_item_payload(projection.fields)
-        args_literal = _py_literal(sample_args, indent=4)
 
         if projection.kind == "collection":
             coll_key = projection.collection_key or "items"
